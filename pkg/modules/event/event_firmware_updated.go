@@ -22,7 +22,7 @@ func (e *FirmwareUpdated) Topic() string {
 	return "FirmwareUpdated(string name, string version, string uri, string avatar)"
 }
 
-func (e *FirmwareUpdated) Unmarshal(data []byte) error {
+func (e *FirmwareUpdated) Unmarshal(v any) error {
 	// unmarshal event log
 	return nil
 }

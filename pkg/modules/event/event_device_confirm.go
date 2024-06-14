@@ -5,7 +5,8 @@ import (
 	"context"
 	"crypto/sha256"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/xoctopus/x/misc/must"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/ethutil/address"
@@ -31,7 +32,10 @@ func (e *DeviceConfirm) Topic() string {
 	return "device/+/confirm"
 }
 
-func (e *DeviceConfirm) Unmarshal(data []byte) error {
+func (e *DeviceConfirm) Unmarshal(v any) error {
+	data, ok := v.([]byte)
+	must.BeTrueWrap(ok, "assertion unmarshal with bytes")
+
 	pkg := &pebblepb.ConfirmPackage{}
 	if err := proto.Unmarshal(data, pkg); err != nil {
 		return err

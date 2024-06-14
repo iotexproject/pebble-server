@@ -25,7 +25,7 @@ func (e *PebbleRemoved) Topic() string {
 	return "Remove(string imei, address owner)"
 }
 
-func (e *PebbleRemoved) Unmarshal(data []byte) error {
+func (e *PebbleRemoved) Unmarshal(v any) error {
 	// unmarshal event log
 	return nil
 }

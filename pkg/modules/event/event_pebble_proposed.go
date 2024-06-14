@@ -27,7 +27,7 @@ func (e *PebbleProposed) Topic() string {
 	return "Proposal(string imei, address owner, address device, string name, string avatar)"
 }
 
-func (e *PebbleProposed) Unmarshal(data []byte) error {
+func (e *PebbleProposed) Unmarshal(v any) error {
 	// unmarshal event log
 	return nil
 }

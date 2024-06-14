@@ -29,7 +29,7 @@ func (e *BankPaid) Topic() string {
 	return "Paid(address indexed from, address indexed to, uint256 amount, uint256 timestamp, uint256 balance)"
 }
 
-func (e *BankPaid) Unmarshal(data []byte) error {
+func (e *BankPaid) Unmarshal(data any) error {
 	// unmarshal event log
 	return nil
 }

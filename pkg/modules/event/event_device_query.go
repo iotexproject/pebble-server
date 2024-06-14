@@ -22,7 +22,7 @@ func (e *DeviceQuery) Topic() string {
 	return "device/+/query"
 }
 
-func (e *DeviceQuery) Unmarshal([]byte) error {
+func (e *DeviceQuery) Unmarshal(_ any) error {
 	return nil
 }
 

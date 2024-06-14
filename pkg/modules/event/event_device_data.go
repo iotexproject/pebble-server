@@ -5,7 +5,8 @@ import (
 	"context"
 	"crypto/sha256"
 
-	"github.com/golang/protobuf/proto"
+	"github.com/xoctopus/x/misc/must"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/ethutil/address"
@@ -32,7 +33,10 @@ func (e *DeviceData) Topic() string {
 	return "device/+/data"
 }
 
-func (e *DeviceData) Unmarshal(data []byte) error {
+func (e *DeviceData) Unmarshal(v any) error {
+	data, ok := v.([]byte)
+	must.BeTrueWrap(ok, "assertion unmarshal with bytes")
+
 	pkg := &pebblepb.BinPackage{}
 	if err := proto.Unmarshal(data, pkg); err != nil {
 		return &UnmarshalError{}

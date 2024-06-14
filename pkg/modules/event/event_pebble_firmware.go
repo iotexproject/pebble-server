@@ -20,7 +20,7 @@ func (e *PebbleFirmware) Topic() string {
 	return "Firmware(string imei, string app)"
 }
 
-func (e *PebbleFirmware) Unmarshal(data []byte) error {
+func (e *PebbleFirmware) Unmarshal(v any) error {
 	// unmarshal event log
 	return nil
 }

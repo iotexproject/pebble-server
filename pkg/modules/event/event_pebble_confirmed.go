@@ -26,7 +26,7 @@ func (e *PebbleConfirmed) Topic() string {
 	return "Confirm(string imei, address owner, address device, uint32 channel)"
 }
 
-func (e *PebbleConfirmed) Unmarshal(data []byte) error {
+func (e *PebbleConfirmed) Unmarshal(v any) error {
 	// unmarshal event log
 	return nil
 }

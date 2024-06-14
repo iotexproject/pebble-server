@@ -28,7 +28,7 @@ func (e *BankWithdraw) Topic() string {
 	return "Withdraw(address indexed from, address indexed to, uint256 amount, uint256 balance)"
 }
 
-func (e *BankWithdraw) Unmarshal(data []byte) error {
+func (e *BankWithdraw) Unmarshal(data any) error {
 	// unmarshal event log
 	return nil
 }

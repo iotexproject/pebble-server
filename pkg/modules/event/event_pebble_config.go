@@ -20,7 +20,7 @@ func (e *PebbleConfig) Topic() string {
 	return "Config(string imei, string config)"
 }
 
-func (e *PebbleConfig) Unmarshal(data []byte) error {
+func (e *PebbleConfig) Unmarshal(v any) error {
 	// unmarshal event log
 	return nil
 }

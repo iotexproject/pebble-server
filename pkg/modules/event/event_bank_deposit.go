@@ -27,7 +27,7 @@ func (e *BankDeposit) Topic() string {
 	return "Deposit(address indexed to, uint256 amount, uint256 balance)"
 }
 
-func (e *BankDeposit) Unmarshal(data []byte) error {
+func (e *BankDeposit) Unmarshal(data any) error {
 	// unmarshal event log
 	return nil
 }

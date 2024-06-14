@@ -1,7 +1,7 @@
 package models
 
 type Account struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Avatar string `json:"avatar"`
+	ID     string `gorm:"primaryKey"`
+	Name   string `gorm:"name"`
+	Avatar string `gorm:"avatar"`
 }

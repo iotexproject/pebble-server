@@ -19,7 +19,7 @@ func (e *FirmwareRemoved) Topic() string {
 	return "FirmwareRemoved(string name)"
 }
 
-func (e *FirmwareRemoved) Unmarshal(data []byte) error {
+func (e *FirmwareRemoved) Unmarshal(v any) error {
 	// unmarshal event log
 	return nil
 }
