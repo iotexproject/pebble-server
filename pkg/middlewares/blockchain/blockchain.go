@@ -11,6 +11,7 @@ type Blockchain struct {
 	Clients     []*EthClient
 	Contracts   []*Contract
 	PersistPath string
+	Network     Network
 
 	monitors  sync.Map
 	clients   map[Network]*EthClient
@@ -31,6 +32,9 @@ func (bc *Blockchain) SetDefault() {
 			},
 		}
 	}
+	if bc.Network == NETWORK_UNKNOWN {
+		bc.Network = NETWORK__IOTX_MAINNET
+	}
 	if bc.PersistPath == "" {
 		bc.PersistPath = "/tmp/pebble"
 	}
@@ -38,6 +42,9 @@ func (bc *Blockchain) SetDefault() {
 
 func (bc *Blockchain) Init() error {
 	for _, c := range bc.Clients {
+		if c.Network != bc.Network {
+			continue
+		}
 		if err := c.Init(); err != nil {
 			return err
 		}
@@ -56,6 +63,9 @@ func (bc *Blockchain) Init() error {
 	}
 
 	for _, c := range bc.Contracts {
+		if c.Network != bc.Network {
+			continue
+		}
 		if bc.clients[c.Network] == nil {
 			return errors.Errorf("contract network `%d` not found", c.Network)
 		}
@@ -86,6 +96,9 @@ func (bc *Blockchain) Init() error {
 	bc.persist = persist
 
 	for _, c := range bc.contracts {
+		if c.Network != bc.Network {
+			continue
+		}
 		for _, event := range c.events {
 			monitor := &Monitor{
 				Meta: Meta{
