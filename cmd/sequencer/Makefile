@@ -1,4 +1,5 @@
-NAME=$(shell basename $$PWD)
+#NAME=$(shell basename $$PWD)
+NAME=pebble-sequencer
 FEATURE=$(shell git rev-parse --abbrev-ref HEAD)
 VERSION=$(shell git describe --tags --always)
 COMMITID=$(shell git rev-parse --short --show HEAD)

@@ -2,15 +2,17 @@ package event
 
 import (
 	"context"
-	"fmt"
+	"reflect"
 	"sort"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
 	"golang.org/x/exp/maps"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
 )
 
@@ -35,7 +37,16 @@ type Event interface {
 
 // EventHasTopicData if an event has metadata in topic, such as device imei in topic
 type EventHasTopicData interface {
+	Event
 	UnmarshalTopic(topic []byte) error
+}
+
+type EventHasBlockchainMeta interface {
+	Event
+	ContractID() enums.ContractID
+	EventName() string
+	SubscriberID() string
+	Data() any
 }
 
 var gEventFactory map[string]func() Event
@@ -94,22 +105,22 @@ func Handle(ctx context.Context, subtopic, topic string, data any) error {
 }
 
 func InitRunner(ctx context.Context) func() {
+	logger := must.BeTrueV(contexts.LoggerFromContext(ctx))
 	return func() {
 		if err := Init(ctx); err != nil {
-			fmt.Printf("event module initialize failed: %v\n", err)
+			logger.Error(err, "event module initialize failed")
 			panic(err)
 		}
-		fmt.Println("event module initialized")
+		logger.Info("event module initialized")
 	}
 }
 
 func Init(ctx context.Context) error {
-	logger, ok := contexts.LoggerFromContext(ctx)
-	must.BeTrueWrap(ok, "expect logger from context")
-	broker, ok := contexts.MqttBrokerFromContext(ctx)
-	must.BeTrueWrap(ok, "expect mqtt broker from context")
-	bc, ok := contexts.BlockchainFromContext(ctx)
-	must.BeTrueWrap(ok, "expect blockchain from context")
+	var (
+		logger = must.BeTrueV(contexts.LoggerFromContext(ctx))
+		broker = must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
+		bc     = must.BeTrueV(contexts.BlockchainFromContext(ctx))
+	)
 
 	for _, v := range Events() {
 		switch v.Source() {
@@ -132,23 +143,58 @@ func Init(ctx context.Context) error {
 			}
 			return nil
 		case SourceTypeBlockchain:
-			inst, err := bc.NewMonitorDefault(v.Topic(), v.Topic())
-			if err != nil {
-				return errors.Wrapf(err, "failed to new monitor instance %s", v.Topic())
+			m, ok := v.(EventHasBlockchainMeta)
+			must.BeTrueWrap(ok, "expect blockchain source event impl `EventHasBlockchainMeta`")
+
+			contract := bc.ContractByID(m.ContractID())
+			if contract == nil {
+				return errors.Errorf("contract not found: [contract: %s]", m.ContractID())
 			}
-			err = inst.Subscribe(func(inst *blockchain.MonitorInstance, message *blockchain.Message) {
-				err := Handle(ctx, v.Topic(), message.Topic(), message.Log)
-				if err != nil {
-					logger.WithValues(
-						"instance", inst.ID,
-						"topic", v.Topic(),
-					).Error(err, "failed to handle mqtt message")
-				}
-			})
+
+			monitor := bc.Monitor(m.ContractID(), m.EventName())
+			if monitor == nil {
+				return errors.Errorf("monitor not found: [contract: %s] [event: %s]", m.ContractID(), m.EventName())
+			}
+
+			sink := make(chan *types.Log, 50)
+			sub, err := monitor.Watch(blockchain.WatchOptions{SubID: m.SubscriberID()}, sink)
+			if err != nil {
+				return errors.Wrapf(err, "failed to subscribe tx log: %s", m.SubscriberID())
+			}
+			go TxLogConsume(ctx, contract, m, sub, sink)
 			return nil
 		default:
 			return errors.Errorf("unexpected event source type: %d", v)
 		}
 	}
 	return nil
+}
+
+func TxLogConsume(ctx context.Context, contract *blockchain.Contract, v EventHasBlockchainMeta, sub blockchain.Subscription, sink <-chan *types.Log) {
+	var (
+		logger = must.BeTrueV(contexts.LoggerFromContext(ctx))
+	)
+	defer sub.Unsubscribe()
+	for {
+		select {
+		case err := <-sub.Err():
+			logger.Error(err, "subscribe failed", "subtopic", v.SubscriberID())
+			return
+		case l := <-sink:
+			data := v.Data()
+			if err := contract.ParseTxLog(v.EventName(), l, data); err != nil {
+				logger.Error(
+					err, "failed to parse tx log: [tx: %s] [event: %s] [data: %s]",
+					l.TxHash, v.EventName(), reflect.TypeOf(data),
+				)
+				continue
+			}
+			if err := Handle(ctx, v.Topic(), "", data); err != nil {
+				logger.Error(
+					err, "failed to handle event data: [tx: %s] [event: %s] [data: %s]",
+					l.TxHash, v.EventName(), reflect.TypeOf(data),
+				)
+			}
+		}
+	}
 }

@@ -1,0 +1,10 @@
+package enums
+
+type ContractID = string
+
+const (
+	CONTRACT__PEBBLE_DEVICE   ContractID = "PEBBLE_DEVICE"
+	CONTRACT__PEBBLE_ACCOUNT  ContractID = "PEBBLE_ACCOUNT"
+	CONTRACT__PEBBLE_BANK     ContractID = "PEBBLE_BANK"
+	CONTRACT__PEBBLE_FIRMWARE ContractID = "PEBBLE_FIRMWARE"
+)

@@ -1,149 +1,235 @@
 package blockchain
 
 import (
-	"bytes"
 	"context"
 	"math/big"
+	"sync"
+	"sync/atomic"
 	"time"
 
+	"github.com/cockroachdb/pebble"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/pkg/errors"
 )
 
-type MonitorMeta struct {
-	Endpoint string
-	Contract common.Address
-	Topic    common.Hash
-}
-
-func (mi *MonitorMeta) ID() string {
-	buf := bytes.NewBuffer(nil)
-	buf.WriteString(mi.Endpoint)
-	buf.Write(mi.Contract.Bytes())
-	buf.Write(mi.Topic.Bytes())
-
-	h := crypto.Keccak256Hash(buf.Bytes())
-	return h.String()
+type MonitorClient interface {
+	ChainID(context.Context) (*big.Int, error)
+	ChainEndpoint() string
+	BlockNumber(context.Context) (uint64, error)
+	FilterLogs(context.Context, ethereum.FilterQuery) ([]types.Log, error)
 }
 
 type Monitor struct {
-	Metas []MonitorMeta
-
-	metas map[string]*MonitorMeta
+	Meta    Meta
+	meta    MetaID
+	current atomic.Uint64
+	client  MonitorClient
+	persist TxPersistence
+	cancel  context.CancelFunc
+	subs    sync.Map
 }
 
 func (m *Monitor) Init() error {
-	m.metas = make(map[string]*MonitorMeta)
-	for _, meta := range m.Metas {
-		id := meta.ID()
-		if vm, exists := m.metas[id]; exists {
-			return errors.Errorf("duplicated monitor meat: %s %s %s",
-				vm.Endpoint, vm.Contract, vm.Topic)
-		}
-		m.metas[id] = &meta
+	m.meta = m.Meta.MetaID()
+
+	_, end, err := m.persist.MetaRange(m.Meta.MetaID())
+	if err != nil {
+		return errors.Wrap(err, "failed to load monitor range")
 	}
+
+	if end != 0 {
+		m.current.Store(end)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	go m.run(ctx)
+	m.cancel = cancel
+
+	logger.Info("monitor started", m.fields()...)
+
 	return nil
 }
 
-type EventHandler func(instance *MonitorInstance, message *Message)
-
-type MonitorInstance struct {
-	ID string
-	MonitorMeta
-	From int64
-	End  int64
-
-	current int64
-	client  *EthClient
-	handler EventHandler
-	persis  persistence
-	stop    chan struct{}
+func (m *Monitor) fields(others ...any) []any {
+	return append(others,
+		"current", m.current.Load(),
+		"network", m.Network(),
+		"endpoint", m.client.ChainEndpoint(),
+		"contract", m.ContractAddress(),
+		"topic", m.Topic(),
+	)
 }
 
-func (m *MonitorInstance) Subscribe(handler EventHandler) error {
-	m.handler = handler
-
-	go func() {
-		logs, err := m.persis.Query(m.ID, m.From, m.End)
-		if err != nil {
-			log.Error(err.Error())
-			return
-		}
-		for _, l := range logs {
-			m.handler(m, &Message{l})
-			m.current = int64(l.BlockNumber)
-		}
-		if m.current < m.From {
-			m.current = m.From
-		}
-		m.run()
-	}()
-	return nil
+func (m *Monitor) WithPersistence(p TxPersistence) *Monitor {
+	m.persist = p
+	return m
 }
 
-func (m *MonitorInstance) Unsubscribe() {
-	m.stop <- struct{}{}
+func (m *Monitor) WithEthClient(c MonitorClient) *Monitor {
+	m.client = c
+	return m
 }
 
-func (m *MonitorInstance) run() {
-	query := ethereum.FilterQuery{
-		Addresses: []common.Address{m.Contract},
-		Topics:    [][]common.Hash{{m.Topic}},
+func (m *Monitor) WithStartBlock(from uint64) *Monitor {
+	m.current.Store(from)
+	return m
+}
+
+func (m *Monitor) MetaID() MetaID {
+	if m.meta == [MetaIDLength]byte{} {
+		m.meta = m.Meta.MetaID()
+	}
+	return m.meta
+}
+
+func (m *Monitor) CurrentBlock() uint64 {
+	return m.current.Load()
+}
+
+func (m *Monitor) Network() Network {
+	return m.Meta.Network
+}
+
+func (m *Monitor) Endpoint() string {
+	return m.client.ChainEndpoint()
+}
+
+func (m *Monitor) ContractAddress() common.Address {
+	return m.Meta.Contract
+}
+
+func (m *Monitor) Topic() common.Hash {
+	return m.Meta.Topic
+}
+
+func (m *Monitor) Stop() {
+	m.cancel()
+}
+
+func (m *Monitor) run(ctx context.Context) {
+	filter := ethereum.FilterQuery{
+		Addresses: []common.Address{m.Meta.Contract},
+		Topics:    [][]common.Hash{{m.Meta.Topic}},
+		FromBlock: new(big.Int),
+		ToBlock:   new(big.Int),
 	}
 	interval := time.Second * 10
-	step := int64(100000)
+	step := uint64(100000)
 	for {
 		select {
-		case <-m.stop:
-			log.Info("monitor stopped")
+		case <-ctx.Done():
+			logger.Info("monitor stopped", m.fields("error", ctx.Err())...)
+			return
 		default:
-			latestBlk, err := m.client.BlockNumber(context.Background())
-			if err != nil {
-				log.Error("query latest block number", "msg", err)
-				time.Sleep(interval)
-				continue
-			}
-			log.Debug("query latest block", "block number", latestBlk)
-			if uint64(m.current) > latestBlk {
-				time.Sleep(interval)
-				continue
-			}
-			query.FromBlock = big.NewInt(m.current)
-			query.ToBlock = big.NewInt(min(m.current+step, int64(latestBlk)))
-
-			logs, err := m.client.FilterLogs(context.Background(), query)
-			if err != nil {
-				log.Error("failed to filter logs", "msg", err)
-				time.Sleep(interval)
-				continue
-			}
-			log.Debug("filter logs", "from", query.FromBlock.Uint64(), "to", query.ToBlock.Uint64())
-			m.current = query.ToBlock.Int64()
-			if len(logs) == 0 {
-				goto TryLater
-			}
-			log.Info("filter logs", "count", len(logs))
-			for _, l := range logs {
-				message := &Message{l}
-				m.handler(m, message)
-				m.persis.Upsert(m.ID, l)
-			}
-		TryLater:
-			if query.ToBlock.Int64()-query.FromBlock.Int64() < step {
-				time.Sleep(interval)
-			}
 		}
+		var (
+			highest uint64
+			logs    []types.Log
+			plogs   []*types.Log
+			err     error
+		)
+		highest, err = m.client.BlockNumber(context.Background())
+		if err != nil {
+			goto TryLater
+		}
+		if m.current.Load() > highest {
+			goto TryLater
+		}
+		filter.FromBlock.SetUint64(m.current.Load())
+		filter.ToBlock.SetUint64(min(m.current.Load()+step, highest))
+
+		logs, err = m.client.FilterLogs(context.Background(), filter)
+		if err != nil {
+			goto TryLater
+		}
+		m.current.Store(filter.ToBlock.Uint64())
+		logger.Info("monitor queried", m.fields("count", len(logs))...)
+		plogs = make([]*types.Log, len(logs))
+		for i := range logs {
+			plogs[i] = &logs[i]
+		}
+		if err = m.persist.InsertLogs(m.meta, plogs...); err != nil {
+			err = errors.Wrap(err, "failed to insert logs")
+			goto Failed
+		}
+
+		if new(big.Int).Sub(filter.ToBlock, filter.FromBlock).Uint64() == step {
+			continue
+		}
+	TryLater:
+		time.Sleep(interval)
+		continue
+	Failed:
+		logger.Error("monitor failed", m.fields("error", err)...)
+		return
 	}
 }
 
-type Message struct {
-	types.Log
+func (m *Monitor) WatchList() []string {
+	subs := make([]string, 0)
+	m.subs.Range(func(key, value any) bool {
+		subs = append(subs, key.(string))
+		return true
+	})
+	return subs
 }
 
-func (v *Message) Topic() string {
-	return v.Log.Topics[0].String()
+func (m *Monitor) Watch(opts WatchOptions, sink chan<- *types.Log) (Subscription, error) {
+	if opts.SubID == "" {
+		return nil, errors.Errorf("sub id is required")
+	}
+	if sink == nil {
+		return nil, errors.Errorf("invalid sink channel, expect not nil")
+	}
+
+	if _, loaded := m.subs.LoadOrStore(opts.SubID, struct{}{}); loaded {
+		return nil, errors.Errorf(
+			"monitor is watching by subscriber `%s` [network: %s] [contract: %s] [topic:%s]",
+			opts.SubID, m.Network(), m.ContractAddress(), m.Topic(),
+		)
+	}
+
+	var (
+		start   uint64
+		current uint64
+		err     error
+	)
+
+	defer func() {
+		if err != nil {
+			m.subs.Delete(opts.SubID)
+		}
+	}()
+
+	start, current, err = m.persist.QueryWatcher(m.meta, opts.SubID)
+	if err != nil {
+		if errors.Is(err, pebble.ErrNotFound) {
+			if opts.Start != nil {
+				start = *opts.Start
+				current = *opts.Start
+				if start > 0 {
+					current -= 1
+				}
+			}
+		} else {
+			err = errors.Wrap(err, "failed to query watcher")
+			return nil, err
+		}
+	}
+
+	if err = m.persist.UpdateWatcher(m.meta, opts.SubID, start, current); err != nil {
+		err = errors.Wrap(err, "failed to update watcher")
+		return nil, err
+	}
+
+	w := &watcher{
+		persist: m.persist,
+		meta:    m.Meta,
+		metaID:  m.meta,
+		sub:     opts.SubID,
+		sink:    sink,
+		start:   start,
+	}
+	return newSubscription(w, func() { m.subs.Delete(opts.SubID) }), nil
 }

@@ -18,14 +18,11 @@ type Postgres struct {
 func (d *Postgres) SetDefault() {
 	if d.Endpoint.IsZero() {
 		d.Endpoint = datatypex.Endpoint{
-			Scheme:   "postgres",
-			Host:     "127.0.0.1",
-			Port:     5432,
-			Base:     "pebble",
-			Path:     "",
-			Username: "",
-			Password: "",
-			Param:    url.Values{"sslmode": []string{"disable"}},
+			Scheme: "postgres",
+			Host:   "127.0.0.1",
+			Port:   5432,
+			Base:   "pebble",
+			Param:  url.Values{"sslmode": []string{"disable"}},
 		}
 	}
 }

@@ -2,10 +2,11 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/go-logr/logr"
 	"github.com/xoctopus/confx/confapp"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
@@ -25,22 +26,29 @@ var (
 
 	app    *confapp.AppCtx
 	config = &struct {
-		MqttBroker confmqtt.Broker
-		Database   database.Postgres
-		Blockchain blockchain.Blockchain
-		Contracts  map[string]common.Address
+		MqttBroker *confmqtt.Broker
+		Database   *database.Postgres
+		Blockchain *blockchain.Blockchain
+		Logger     logr.Logger
 	}{
-		Contracts: map[string]common.Address{
-			"account":  common.HexToAddress("0x189e2ED6EAfBCeAF938d049cf3685828b5493952"),
-			"firmware": common.HexToAddress("0xC5F406c42C96e68756311Dad49dE99B0f4A1A722"),
-			"pebble":   common.HexToAddress("0xC9D7D9f25b98119DF5b2303ac0Df6b15C982BbF5"),
-			"bank":     common.HexToAddress("0xb86f97D494EEf8c6d618ee2049419eE0Ce843F28"),
+		Logger: logr.FromSlogHandler(&slog.JSONHandler{}),
+		Blockchain: &blockchain.Blockchain{
+			Clients:     []*blockchain.EthClient{},
+			Contracts:   contracts,
+			PersistPath: "",
 		},
 	}
 	ctx context.Context
 )
 
 func init() {
+	ctx = contextx.WithContextCompose(
+		contexts.WithLoggerContext(&config.Logger),
+		contexts.WithBlockchainContext(config.Blockchain),
+		contexts.WithDatabaseContext(config.Database),
+		contexts.WithMqttBrokerContext(config.MqttBroker),
+	)(context.Background())
+
 	app = confapp.NewAppContext(
 		confapp.WithBuildMeta(confapp.Meta{
 			Name:     Name,
@@ -58,13 +66,6 @@ func init() {
 	)
 
 	app.Conf(config)
-
-	ctx = contextx.WithContextCompose(
-		contexts.WithBlockchainContext(&config.Blockchain),
-		contexts.WithDatabaseContext(&config.Database),
-		contexts.WithMqttBrokerContext(&config.MqttBroker),
-		contexts.WithContractsContext(config.Contracts),
-	)(context.Background())
 }
 
 func Main() error {

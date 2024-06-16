@@ -3,7 +3,6 @@ package contexts
 import (
 	"context"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-logr/logr"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
@@ -54,27 +53,18 @@ func WithMqttClientContext(v *confmqtt.Client) contextx.WithContext {
 	}
 }
 
-func EthClientFromContextByName(ctx context.Context, name string) (*blockchain.EthClient, bool) {
-	v, ok := ctx.Value(ctxBlockchain{}).(blockchain.Blockchain)
-	if !ok {
-		return nil, false
-	}
-	c := v.ClientByName(name)
-	return c, c != nil
-}
-
-func EthClientFromContextByEndpoint(ctx context.Context, endpoint string) (*blockchain.EthClient, bool) {
-	v, ok := ctx.Value(ctxBlockchain{}).(blockchain.Blockchain)
-	if !ok {
-		return nil, false
-	}
-	c := v.ClientByEndpoint(endpoint)
-	return c, c != nil
-}
-
 func BlockchainFromContext(ctx context.Context) (*blockchain.Blockchain, bool) {
 	v, ok := ctx.Value(ctxBlockchain{}).(*blockchain.Blockchain)
 	return v, ok
+}
+
+func EthClientFromContextByNetwork(ctx context.Context, network blockchain.Network) (*blockchain.EthClient, bool) {
+	v, ok := ctx.Value(ctxBlockchain{}).(*blockchain.Blockchain)
+	if !ok {
+		return nil, false
+	}
+	c := v.ClientByNetwork(network)
+	return c, c != nil
 }
 
 func WithBlockchainContext(v *blockchain.Blockchain) contextx.WithContext {
@@ -91,21 +81,5 @@ func DatabaseFromContext(ctx context.Context) (*database.Postgres, bool) {
 func WithDatabaseContext(v *database.Postgres) contextx.WithContext {
 	return func(ctx context.Context) context.Context {
 		return context.WithValue(ctx, ctxDatabase{}, v)
-	}
-}
-
-func ContractAddrFromContextByName(ctx context.Context, name string) (common.Address, bool) {
-	v, ok := ctx.Value(ctxContracts{}).(map[string]common.Address)
-	if ok {
-		if addr, ok := v[name]; ok {
-			return addr, true
-		}
-	}
-	return common.Address{}, false
-}
-
-func WithContractsContext(v map[string]common.Address) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxContracts{}, v)
 	}
 }
