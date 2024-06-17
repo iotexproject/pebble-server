@@ -3,22 +3,31 @@ package event
 import (
 	"context"
 	"math/big"
+	"strings"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/ethutil/address"
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 )
 
 func init() {
-	e := &BankPaid{}
-	registry(e.Topic(), func() Event { return &BankPaid{} })
+	f := func() Event {
+		return &BankPaid{
+			contractID: enums.CONTRACT__PEBBLE_BANK,
+		}
+	}
+	e := f()
+	registry(e.Topic(), f)
 }
 
 type BankPaid struct {
-	tx      string
-	from    address.Address
-	to      address.Address
-	amount  *big.Int
-	ts      *big.Int
-	balance *big.Int
+	From      common.Address
+	To        common.Address
+	Amount    *big.Int
+	Timestamp *big.Int
+	Balance   *big.Int
+
+	contractID string
 }
 
 func (e *BankPaid) Source() SourceType {
@@ -26,13 +35,24 @@ func (e *BankPaid) Source() SourceType {
 }
 
 func (e *BankPaid) Topic() string {
-	return "Paid(address indexed from, address indexed to, uint256 amount, uint256 timestamp, uint256 balance)"
+	return network.Topic(e.contractID) + "__" + strings.ToUpper(e.EventName())
 }
 
-func (e *BankPaid) Unmarshal(data any) error {
-	// unmarshal event log
-	return nil
+func (e *BankPaid) ContractID() string {
+	return network.ContractID(e.contractID)
 }
+
+func (e *BankPaid) EventName() string {
+	return "Paid"
+}
+
+func (e *BankPaid) SubscriberID() string {
+	return network.SubscriberID(e.contractID)
+}
+
+func (e *BankPaid) Data() any { return e }
+
+func (e *BankPaid) Unmarshal(any) error { return nil }
 
 func (e *BankPaid) Handle(ctx context.Context) error {
 	// create bank record

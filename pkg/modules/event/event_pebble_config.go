@@ -1,15 +1,27 @@
 package event
 
-import "context"
+import (
+	"context"
+	"strings"
+
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
+)
 
 func init() {
-	e := &PebbleConfig{}
-	registry(e.Topic(), func() Event { return &PebbleConfig{} })
+	f := func() Event {
+		return &PebbleConfig{
+			contractID: enums.CONTRACT__PEBBLE_DEVICE,
+		}
+	}
+	e := f()
+	registry(e.Topic(), f)
 }
 
 type PebbleConfig struct {
-	imei  string
-	appid string
+	Imei   string
+	Config string
+
+	contractID string
 }
 
 func (e *PebbleConfig) Source() SourceType {
@@ -17,13 +29,24 @@ func (e *PebbleConfig) Source() SourceType {
 }
 
 func (e *PebbleConfig) Topic() string {
-	return "Config(string imei, string config)"
+	return network.Topic(e.contractID) + "__" + strings.ToUpper(e.EventName())
 }
 
-func (e *PebbleConfig) Unmarshal(v any) error {
-	// unmarshal event log
-	return nil
+func (e *PebbleConfig) ContractID() string {
+	return network.ContractID(e.contractID)
 }
+
+func (e *PebbleConfig) EventName() string {
+	return "Config"
+}
+
+func (e *PebbleConfig) SubscriberID() string {
+	return network.SubscriberID(e.contractID)
+}
+
+func (e *PebbleConfig) Data() any { return e }
+
+func (e *PebbleConfig) Unmarshal(any) error { return nil }
 
 func (e *PebbleConfig) Handle(ctx context.Context) error {
 	// update device set config = $appid where id = $imei

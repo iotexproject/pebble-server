@@ -12,7 +12,6 @@ import (
 	"golang.org/x/exp/maps"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
 )
 
@@ -23,6 +22,8 @@ const (
 	SourceTypeMQTT = iota + 1
 	SourceTypeBlockchain
 )
+
+var network blockchain.Network = blockchain.NETWORK__IOTX_MAINNET
 
 type Event interface {
 	// Source returns event source type, eg: mqtt, blockchain
@@ -43,9 +44,13 @@ type EventHasTopicData interface {
 
 type EventHasBlockchainMeta interface {
 	Event
-	ContractID() enums.ContractID
+	// ContractID returns contract id defined in enums package
+	ContractID() string
+	// EventName returns event name event handling
 	EventName() string
+	// SubscribeID returns the unique subscriber id
 	SubscriberID() string
+	// Data returns the structured data can be parsed from tx log
 	Data() any
 }
 
@@ -121,6 +126,7 @@ func Init(ctx context.Context) error {
 		broker = must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
 		bc     = must.BeTrueV(contexts.BlockchainFromContext(ctx))
 	)
+	network = bc.Network
 
 	for _, v := range Events() {
 		switch v.Source() {
@@ -171,9 +177,7 @@ func Init(ctx context.Context) error {
 }
 
 func TxLogConsume(ctx context.Context, contract *blockchain.Contract, v EventHasBlockchainMeta, sub blockchain.Subscription, sink <-chan *types.Log) {
-	var (
-		logger = must.BeTrueV(contexts.LoggerFromContext(ctx))
-	)
+	logger := must.BeTrueV(contexts.LoggerFromContext(ctx))
 	defer sub.Unsubscribe()
 	for {
 		select {

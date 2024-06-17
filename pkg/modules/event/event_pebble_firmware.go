@@ -1,15 +1,27 @@
 package event
 
-import "context"
+import (
+	"context"
+	"strings"
+
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
+)
 
 func init() {
-	e := &PebbleFirmware{}
-	registry(e.Topic(), func() Event { return &PebbleFirmware{} })
+	f := func() Event {
+		return &PebbleFirmware{
+			contractID: enums.CONTRACT__PEBBLE_DEVICE,
+		}
+	}
+	e := f()
+	registry(e.Topic(), f)
 }
 
 type PebbleFirmware struct {
-	imei  string
-	appid string
+	Imei string
+	App  string
+
+	contractID string
 }
 
 func (e *PebbleFirmware) Source() SourceType {
@@ -17,13 +29,24 @@ func (e *PebbleFirmware) Source() SourceType {
 }
 
 func (e *PebbleFirmware) Topic() string {
-	return "Firmware(string imei, string app)"
+	return network.Topic(e.contractID) + "__" + strings.ToUpper(e.EventName())
 }
 
-func (e *PebbleFirmware) Unmarshal(v any) error {
-	// unmarshal event log
-	return nil
+func (e *PebbleFirmware) ContractID() string {
+	return network.ContractID(e.contractID)
 }
+
+func (e *PebbleFirmware) EventName() string {
+	return "Firmware"
+}
+
+func (e *PebbleFirmware) SubscriberID() string {
+	return network.SubscriberID(e.contractID)
+}
+
+func (e *PebbleFirmware) Data() any { return e }
+
+func (e *PebbleFirmware) Unmarshal(any) error { return nil }
 
 func (e *PebbleFirmware) Handle(ctx context.Context) error {
 	// app := select * from app where id = $appid

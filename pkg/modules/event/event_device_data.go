@@ -67,8 +67,8 @@ func (e *DeviceData) Unmarshal(v any) error {
 		return &UnmarshalError{}
 	}
 
-	buf := make([]byte, 4)
-	gByteOrder.PutUint32(buf[:4], typ)
+	buf := make([]byte, 4+len(pl)+4)
+	gByteOrder.PutUint32(buf, typ)
 	copy(buf[4:], pl)
 	gByteOrder.PutUint32(buf[4+len(pl):], ts)
 	sum := sha256.Sum256(buf)

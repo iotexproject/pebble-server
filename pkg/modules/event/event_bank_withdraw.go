@@ -3,21 +3,30 @@ package event
 import (
 	"context"
 	"math/big"
+	"strings"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/ethutil/address"
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 )
 
 func init() {
-	e := &BankWithdraw{}
-	registry(e.Topic(), func() Event { return &BankWithdraw{} })
+	f := func() Event {
+		return &BankWithdraw{
+			contractID: enums.CONTRACT__PEBBLE_BANK,
+		}
+	}
+	e := f()
+	registry(e.Topic(), f)
 }
 
 type BankWithdraw struct {
-	tx      string
-	from    address.Address
-	to      address.Address
-	amount  *big.Int
-	balance *big.Int
+	From    common.Address
+	To      common.Address
+	Amount  *big.Int
+	Balance *big.Int
+
+	contractID string
 }
 
 func (e *BankWithdraw) Source() SourceType {
@@ -25,13 +34,24 @@ func (e *BankWithdraw) Source() SourceType {
 }
 
 func (e *BankWithdraw) Topic() string {
-	return "Withdraw(address indexed from, address indexed to, uint256 amount, uint256 balance)"
+	return network.Topic(e.contractID) + "__" + strings.ToUpper(e.EventName())
 }
 
-func (e *BankWithdraw) Unmarshal(data any) error {
-	// unmarshal event log
-	return nil
+func (e *BankWithdraw) ContractID() string {
+	return network.ContractID(e.contractID)
 }
+
+func (e *BankWithdraw) EventName() string {
+	return "Withdraw"
+}
+
+func (e *BankWithdraw) SubscriberID() string {
+	return network.SubscriberID(e.contractID)
+}
+
+func (e *BankWithdraw) Data() any { return e }
+
+func (e *BankWithdraw) Unmarshal(any) error { return nil }
 
 func (e *BankWithdraw) Handle(ctx context.Context) error {
 	// create bank record

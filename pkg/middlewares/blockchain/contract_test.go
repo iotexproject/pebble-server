@@ -145,5 +145,59 @@ func TestContract(t *testing.T) {
 			r.Equal(res.Uri, "ipfs://ipfs.mainnet.iotex.io/Qmd15NF7DSuDR4V54h3FqVEzbyx26gy45t87myHKc3oz1E")
 			r.Equal(res.Hash.String(), "0x1975829605f6c10cab41ffeece8b632090f1a6d47f7cb5d03336ae39635016b9")
 		})
+
+		t.Run("HasRedundantFailed", func(t *testing.T) {
+			v1 := &struct {
+				ProjectId  *big.Int
+				Uri        string
+				Hash       common.Hash
+				unexported int
+			}{}
+			r.NoError(c.ParseTxLog("ProjectConfigUpdated", log, v1))
+			r.Equal(v1.ProjectId.Int64(), int64(23))
+			r.Equal(v1.Uri, "ipfs://ipfs.mainnet.iotex.io/Qmd15NF7DSuDR4V54h3FqVEzbyx26gy45t87myHKc3oz1E")
+			r.Equal(v1.Hash.String(), "0x1975829605f6c10cab41ffeece8b632090f1a6d47f7cb5d03336ae39635016b9")
+
+			v2 := &struct {
+				ProjectId *big.Int
+				Uri       string
+				Hash      common.Hash
+				Exported  int
+			}{}
+			r.NoError(c.ParseTxLog("ProjectConfigUpdated", log, v2))
+			r.Equal(v2.ProjectId.Int64(), int64(23))
+			r.Equal(v2.Uri, "ipfs://ipfs.mainnet.iotex.io/Qmd15NF7DSuDR4V54h3FqVEzbyx26gy45t87myHKc3oz1E")
+			r.Equal(v2.Hash.String(), "0x1975829605f6c10cab41ffeece8b632090f1a6d47f7cb5d03336ae39635016b9")
+
+			v3 := &struct {
+				ProjectId *big.Int
+				Uri       string
+				Disturbed int
+				Hash      common.Hash
+			}{}
+			r.NoError(c.ParseTxLog("ProjectConfigUpdated", log, v3))
+			r.Equal(v3.ProjectId.Int64(), int64(23))
+			r.Equal(v3.Uri, "ipfs://ipfs.mainnet.iotex.io/Qmd15NF7DSuDR4V54h3FqVEzbyx26gy45t87myHKc3oz1E")
+			r.Equal(v3.Hash.String(), "0x1975829605f6c10cab41ffeece8b632090f1a6d47f7cb5d03336ae39635016b9")
+
+			v4 := &struct {
+				Hash      common.Hash
+				Disturbed int
+				Uri       string
+				ProjectId *big.Int
+			}{}
+			r.NoError(c.ParseTxLog("ProjectConfigUpdated", log, v4))
+			r.Equal(v4.ProjectId.Int64(), int64(23))
+			r.Equal(v4.Uri, "ipfs://ipfs.mainnet.iotex.io/Qmd15NF7DSuDR4V54h3FqVEzbyx26gy45t87myHKc3oz1E")
+			r.Equal(v4.Hash.String(), "0x1975829605f6c10cab41ffeece8b632090f1a6d47f7cb5d03336ae39635016b9")
+
+			v5 := &struct {
+				HASH      common.Hash
+				Disturbed int
+				URI       string
+				ProjectID *big.Int
+			}{}
+			r.ErrorContains(c.ParseTxLog("ProjectConfigUpdated", log, v5), "can't be found in the given value")
+		})
 	})
 }
