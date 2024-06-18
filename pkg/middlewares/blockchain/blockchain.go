@@ -92,12 +92,6 @@ func (bc *Blockchain) Init() error {
 		err     error
 		persist = &Persist{Path: bc.PersistPath}
 	)
-	defer func() {
-		if err != nil && persist != nil {
-			persist.Close()
-		}
-	}()
-
 	if err = persist.Init(); err != nil {
 		return errors.Wrapf(err, "failed to init bc persistence")
 	}
@@ -109,6 +103,10 @@ func (bc *Blockchain) Init() error {
 	}
 
 	return nil
+}
+
+func (bc *Blockchain) Close() {
+	bc.persist.Close()
 }
 
 func (bc *Blockchain) ClientByNetwork() *EthClient {

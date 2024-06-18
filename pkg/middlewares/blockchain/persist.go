@@ -31,6 +31,8 @@ type TxPersistence interface {
 	QueryWatcher(MetaID, string) (uint64, uint64, error)
 	// UpdateWatcher update watcher state
 	UpdateWatcher(MetaID, string, uint64, uint64) error
+	// Close
+	Close() error
 }
 
 type PebbleKVStore interface {
@@ -57,7 +59,7 @@ func (p *Persist) IsZero() bool {
 func (p *Persist) Init() error {
 	db, err := pebble.Open(p.Path, &pebble.Options{})
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "path: %s", p.Path)
 	}
 	p.db = db
 	return nil

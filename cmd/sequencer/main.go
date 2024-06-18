@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xoctopus/confx/confapp"
+	"github.com/xoctopus/confx/confcmd"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
 	"github.com/xoctopus/x/misc/must"
@@ -75,6 +76,7 @@ func init() {
 			Migrate(ctx)
 		},
 	})
+	app.AddCommand(confcmd.NewCommand(NewDefaultSproutConfigGenerator()))
 }
 
 func Main() error {
@@ -107,6 +109,7 @@ func Migrate(ctx context.Context) {
 func main() {
 	if err := app.Command.Execute(); err != nil {
 		app.PrintErrln(err)
-		os.Exit(-1)
 	}
+	config.Blockchain.Close()
+	os.Exit(-1)
 }
