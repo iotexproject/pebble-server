@@ -1,0 +1,59 @@
+package event
+
+import (
+	"context"
+	"strings"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
+
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
+)
+
+func init() {
+	f := func() Event { return &PebbleRemove{} }
+	e := f()
+	registry(e.Topic(), f)
+}
+
+type PebbleRemove struct {
+	Imei  string
+	Owner common.Address
+}
+
+func (e *PebbleRemove) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
+
+func (e *PebbleRemove) Topic() string {
+	return strings.Join([]string{
+		"TOPIC", e.ContractID(), strings.ToUpper(e.EventName()),
+	}, "__")
+}
+
+func (e *PebbleRemove) ContractID() string { return enums.CONTRACT__PEBBLE_DEVICE }
+
+func (e *PebbleRemove) EventName() string { return "Withdraw" }
+
+func (e *PebbleRemove) Data() any { return e }
+
+func (e *PebbleRemove) Unmarshal(any) error { return nil }
+
+func (e *PebbleRemove) Handle(ctx context.Context) (err error) {
+	defer func() { err = WrapHandleError(err, e) }()
+
+	dev := &models.Device{ID: e.Imei}
+	if err = FetchByPrimary(ctx, dev, e.Imei); err != nil {
+		return err
+	}
+	if dev.Owner != e.Owner.String() {
+		return errors.Errorf("without device perimission")
+	}
+	if dev.Status == models.CONFIRM {
+		dev.Status = models.CREATED
+	}
+	if dev.Proposer == e.Owner.String() {
+		dev.Proposer = ""
+	}
+	_, err = UpsertOnConflict(ctx, dev, "id", "owner", "status", "proposer")
+	return err
+}

@@ -1,0 +1,3 @@
+build
+cmd/sequencer/pebble-sequencer
+cmd/sequencer/config/local.yml

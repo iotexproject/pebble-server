@@ -1,30 +1,39 @@
 package event
 
-import "context"
+import (
+	"context"
+	"strings"
+
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
+)
 
 func init() {
-	e := &FirmwareRemoved{}
-	registry(e.Topic(), func() Event { return &FirmwareRemoved{} })
+	f := func() Event { return &FirmwareRemoved{} }
+	e := f()
+	registry(e.Topic(), f)
 }
 
 type FirmwareRemoved struct {
-	appid string
+	Name string
 }
 
-func (e *FirmwareRemoved) Source() SourceType {
-	return SourceTypeBlockchain
-}
+func (e *FirmwareRemoved) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
 
 func (e *FirmwareRemoved) Topic() string {
-	return "FirmwareRemoved(string name)"
+	return strings.Join([]string{
+		"TOPIC", e.ContractID(), strings.ToUpper(e.EventName()),
+	}, "__")
 }
 
-func (e *FirmwareRemoved) Unmarshal(data []byte) error {
-	// unmarshal event log
-	return nil
-}
+func (e *FirmwareRemoved) ContractID() string { return enums.CONTRACT__PEBBLE_FIRMWARE }
 
-func (e *FirmwareRemoved) Handle(ctx context.Context) error {
-	// remove app by appid
-	return nil
+func (e *FirmwareRemoved) EventName() string { return "FirmwareRemoved" }
+
+func (e *FirmwareRemoved) Data() any { return e }
+
+func (e *FirmwareRemoved) Unmarshal(any) error { return nil }
+
+func (e *FirmwareRemoved) Handle(ctx context.Context) (err error) {
+	return WrapHandleError(DeleteByPrimary(ctx, &models.App{}, e.Name), e)
 }

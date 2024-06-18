@@ -1,35 +1,69 @@
 package event
 
-import "context"
+import (
+	"context"
+	"strings"
+
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
+)
 
 func init() {
-	e := &FirmwareUpdated{}
-	registry(e.Topic(), func() Event { return &FirmwareUpdated{} })
+	f := func() Event { return &FirmwareUpdated{} }
+	e := f()
+	registry(e.Topic(), f)
 }
 
 type FirmwareUpdated struct {
-	appid   string
-	version string
-	uri     string
-	avatar  string
+	Name    string
+	Version string
+	Uri     string
+	Avatar  string
 }
 
-func (e *FirmwareUpdated) Source() SourceType {
-	return SourceTypeBlockchain
-}
+func (e *FirmwareUpdated) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
 
 func (e *FirmwareUpdated) Topic() string {
-	return "FirmwareUpdated(string name, string version, string uri, string avatar)"
+	return strings.Join([]string{
+		"TOPIC", e.ContractID(), strings.ToUpper(e.EventName()),
+	}, "__")
 }
 
-func (e *FirmwareUpdated) Unmarshal(data []byte) error {
-	// unmarshal event log
-	return nil
-}
+func (e *FirmwareUpdated) ContractID() string { return enums.CONTRACT__PEBBLE_FIRMWARE }
 
-func (e *FirmwareUpdated) Handle(ctx context.Context) error {
-	// create or update app
-	// notify device firmware updated device/app_updated/$appid
-	// {name:app.id,version:app.version,uri:app.uri,avatar:app.avatar}
-	return nil
+func (e *FirmwareUpdated) EventName() string { return "FirmwareUpdated" }
+
+func (e *FirmwareUpdated) Data() any { return e }
+
+func (e *FirmwareUpdated) Unmarshal(any) error { return nil }
+
+func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
+	defer func() { err = WrapHandleError(err, e) }()
+
+	app := &models.App{
+		ID:             e.Name,
+		Version:        e.Version,
+		Uri:            e.Uri,
+		Avatar:         e.Avatar,
+		OperationTimes: models.NewOperationTimes(),
+	}
+	_, err = UpsertOnConflict(ctx, app, "id", "version", "uri", "avatar")
+	if err != nil {
+		return err
+	}
+
+	return PublicMqttMessage(ctx,
+		"firmware_updated", "device/app_update/"+app.ID,
+		&struct {
+			Name    string `json:"name"`
+			Version string `json:"version"`
+			Uri     string `json:"uri"`
+			Avatar  string `json:"avatar"`
+		}{
+			Name:    app.ID,
+			Version: app.Version,
+			Uri:     app.Uri,
+			Avatar:  app.Avatar,
+		},
+	)
 }

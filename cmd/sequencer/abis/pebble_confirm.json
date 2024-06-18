@@ -1,0 +1,1 @@
+[{"anonymous":false,"inputs":[{"indexed":false,"internalType":"string","name":"imei","type":"string"},{"indexed":false,"internalType":"address","name":"owner","type":"address"},{"indexed":false,"internalType":"address","name":"device","type":"address"},{"indexed":false,"internalType":"uint32","name":"channel","type":"uint32"}],"name":"Confirm","type":"event"}]

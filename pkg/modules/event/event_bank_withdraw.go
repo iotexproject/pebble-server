@@ -3,39 +3,67 @@ package event
 import (
 	"context"
 	"math/big"
+	"strings"
+	"time"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/ethutil/address"
+	"github.com/ethereum/go-ethereum/common"
+
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
 
 func init() {
-	e := &BankWithdraw{}
-	registry(e.Topic(), func() Event { return &BankWithdraw{} })
+	f := func() Event { return &BankWithdraw{} }
+	e := f()
+	registry(e.Topic(), f)
 }
 
 type BankWithdraw struct {
-	tx      string
-	from    address.Address
-	to      address.Address
-	amount  *big.Int
-	balance *big.Int
+	From    common.Address
+	To      common.Address
+	Amount  *big.Int
+	Balance *big.Int
+	TxHash
 }
 
-func (e *BankWithdraw) Source() SourceType {
-	return SourceTypeBlockchain
-}
+func (e *BankWithdraw) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
 
 func (e *BankWithdraw) Topic() string {
-	return "Withdraw(address indexed from, address indexed to, uint256 amount, uint256 balance)"
+	return strings.Join([]string{
+		"TOPIC", e.ContractID(), strings.ToUpper(e.EventName()),
+	}, "__")
 }
 
-func (e *BankWithdraw) Unmarshal(data []byte) error {
-	// unmarshal event log
-	return nil
-}
+func (e *BankWithdraw) ContractID() string { return enums.CONTRACT__PEBBLE_BANK }
 
-func (e *BankWithdraw) Handle(ctx context.Context) error {
-	// create bank record
-	// upsert bank
-	// type 1
-	return nil
+func (e *BankWithdraw) EventName() string { return "Withdraw" }
+
+func (e *BankWithdraw) Data() any { return e }
+
+func (e *BankWithdraw) Unmarshal(any) error { return nil }
+
+func (e *BankWithdraw) Handle(ctx context.Context) (err error) {
+	defer func() { err = WrapHandleError(err, e) }()
+
+	br := &models.BankRecord{
+		ID:        e.hash.String(),
+		From:      e.From.String(),
+		To:        e.To.String(),
+		Amount:    e.Amount.String(),
+		Timestamp: time.Now().Unix(),
+		Type:      models.BankRecodeWithdraw,
+	}
+
+	b := &models.Bank{
+		Address: e.From.String(),
+		Balance: e.Balance.String(),
+	}
+
+	_, err = UpsertOnConflict(ctx, br, "id")
+	if err != nil {
+		return err
+	}
+
+	_, err = UpsertOnConflict(ctx, b, "address", "balance", "updated_at")
+	return err
 }

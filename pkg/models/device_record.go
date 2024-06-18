@@ -1,21 +1,25 @@
 package models
 
 type DeviceRecord struct {
-	ID            string `json:"id"`             // id varchar(64)
-	Imei          string `json:"imei"`           // imei varchar(64)
-	Operator      string `json:"operator"`       // operator varchar(64)
-	Snr           string `json:"snr"`            // snr varchar(12)
-	Vbat          string `json:"vbat"`           // vbat varchar(12)
-	GasResistance string `json:"gas_resistance"` // gas_resistance varchar(12)
-	Temperature   string `json:"temperature"`    // temperature varchar(12)
-	Temperature2  string `json:"temperature2"`   // temperature2 varchar(12)
-	Pressure      string `json:"pressure"`       // pressure varchar(12)
-	Humidity      string `json:"humidity"`       // humidity varchar(12)
-	Light         string `json:"light"`          // light varchar(12)
-	Gyroscope     string `json:"gyroscope"`      // gyroscope varchar(128)
-	Accelerometer string `json:"accelerometer"`  // accelerometer varchar(128)
-	Latitude      string `json:"latitude"`       // latitude varchar(32)
-	Longitude     string `json:"longitude"`      // longitude varchar(32)
-	Signature     string `json:"signature"`      // signature varchar(256)
-	Timestamp     int64  `json:"timestamp"`      // timestamp int(11)
+	ID            string `gorm:"primary_key"`
+	Imei          string `gorm:"not null"`
+	Operator      string `gorm:"not null"`
+	Snr           string `gorm:"not null;type:numeric(10,2);default:0"`
+	Vbat          string `gorm:"not null;type:numeric(10,2);default:0"`
+	GasResistance string `gorm:"not null;type:numeric(10,2);default:0"`
+	Temperature   string `gorm:"not null;type:numeric(10,2);default:0"`
+	Temperature2  string `gorm:"not null;type:numeric(10,2);default:0"`
+	Pressure      string `gorm:"not null;type:numeric(10,2);default:0"`
+	Humidity      string `gorm:"not null;type:numeric(10,2);default:0"`
+	Light         string `gorm:"not null;type:numeric(10,2);default:0"`
+	Gyroscope     string `gorm:"not null;default:''"`
+	Accelerometer string `gorm:"not null;default:''"`
+	Latitude      string `gorm:"not null;default:0"`
+	Longitude     string `gorm:"not null;default:0"`
+	Signature     string `gorm:"not null;default:''"`
+	Timestamp     int64  `gorm:"not null;default:0"`
+
+	OperationTimes
 }
+
+func (*DeviceRecord) TableName() string { return "device_record" }

@@ -1,7 +1,11 @@
 package models
 
 type Account struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Avatar string `json:"avatar"`
+	ID     string `gorm:"primary_key"`
+	Name   string `gorm:"not null"`
+	Avatar string `gorm:"not null"`
+
+	OperationTimes
 }
+
+func (*Account) TableName() string { return "account" }

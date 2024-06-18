@@ -1,8 +1,12 @@
 package event
 
 import (
-	"bytes"
 	"context"
+	"strings"
+
+	"github.com/pkg/errors"
+
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
 
 func init() {
@@ -11,48 +15,62 @@ func init() {
 }
 
 type DeviceQuery struct {
-	imei string
+	IMEI
 }
 
-func (e *DeviceQuery) Source() SourceType {
-	return SourceTypeMQTT
-}
+func (e *DeviceQuery) Source() SourceType { return SOURCE_TYPE__MQTT }
 
-func (e *DeviceQuery) Topic() string {
-	return "device/+/query"
-}
+func (e *DeviceQuery) Topic() string { return "device/+/query" }
 
-func (e *DeviceQuery) Unmarshal([]byte) error {
-	return nil
-}
+func (e *DeviceQuery) Unmarshal(any) error { return nil /* no payload */ }
 
 func (e *DeviceQuery) UnmarshalTopic(topic []byte) error {
-	parts := bytes.Split(topic, []byte("/"))
-	if len(parts) != 3 {
-		return &UnmarshalTopicError{}
-	}
-	if !bytes.Equal(parts[0], []byte("device")) ||
-		!bytes.Equal(parts[2], []byte("query")) {
-		return &UnmarshalTopicError{}
-	}
-	if len(parts[1]) == 0 {
-		return &UnmarshalTopicError{}
-	}
-	e.imei = string(parts[1])
-	return nil
+	return (&TopicUnmarshaller{e, topic, "device", "query"}).Unmarshal()
 }
 
-type StateQueryResult struct {
-	Status   int    `json:"status"`
-	Proposer string `json:"proposer,omitempty"`
-	Firmware string `json:"firmware,omitempty"`
-	URI      string `json:"uri,omitempty"`
-	Version  string `json:"version,omitempty"`
-}
+func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
+	defer func() { err = WrapHandleError(err, e) }()
 
-func (e *DeviceQuery) Handle(ctx context.Context) error {
-	// fetch device by imei from `device`
-	// fetch firmwares from `app`
-	// response `StateQueryResult` to "backend/$imei/status"
-	return nil
+	dev := &models.Device{}
+	err = FetchByPrimary(ctx, dev, e.imei)
+	if err != nil {
+		return err
+	}
+
+	if dev.Status == models.CREATED {
+		return errors.Errorf("device %s is not propsaled", dev.ID)
+	}
+
+	var (
+		firmware string
+		uri      string
+		version  string
+	)
+	if parts := strings.Split(dev.RealFirmware, " "); len(parts) == 2 {
+		app := &models.App{}
+		err = FetchByPrimary(ctx, app, parts[0])
+		if err != nil {
+			return err
+		}
+		firmware = app.ID
+		uri = app.Uri
+		version = app.Version
+	}
+
+	return PublicMqttMessage(ctx,
+		"device_query", "backend/"+e.imei+"/status",
+		&struct {
+			Status   int32  `json:"status"`
+			Proposer string `json:"proposer,omitempty"`
+			Firmware string `json:"firmware,omitempty"`
+			URI      string `json:"uri,omitempty"`
+			Version  string `json:"version,omitempty"`
+		}{
+			Status:   dev.Status,
+			Proposer: dev.Proposer,
+			Firmware: firmware,
+			URI:      uri,
+			Version:  version,
+		},
+	)
 }
