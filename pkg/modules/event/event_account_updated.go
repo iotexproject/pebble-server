@@ -3,7 +3,6 @@ package event
 import (
 	"context"
 	"strings"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 
@@ -43,16 +42,11 @@ func (e *AccountUpdated) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
 	m := &models.Account{
-		ID:     e.Owner.String(),
-		Name:   e.Name,
-		Avatar: e.Avatar,
+		ID:             e.Owner.String(),
+		Name:           e.Name,
+		Avatar:         e.Avatar,
+		OperationTimes: models.NewOperationTimes(),
 	}
-
-	return UpsertOnConflictUpdateOthers(ctx, m, []string{"id"}, append([]*Assigner{
-		{"id", m.ID},
-		{"name", m.Name},
-		{"avatar", m.Avatar},
-		{"updated_at", time.Now()},
-		{"created_at", time.Now()},
-	})...)
+	_, err = UpsertOnConflict(ctx, m, "id", "name", "avatar", "updated_at")
+	return err
 }

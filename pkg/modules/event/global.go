@@ -194,6 +194,9 @@ func StartChainEventConsuming(ctx context.Context, v EventHasBlockchainMeta) err
 					)
 					continue
 				}
+				if setter, ok := v.(CanSetTxHash); ok {
+					setter.SetTxHash(l)
+				}
 				if err := Handle(ctx, v.Topic(), "", data); err != nil {
 					logger.Error(
 						err, "failed to handle event data: [tx: %s] [event: %s] [data: %s]",

@@ -4,7 +4,11 @@ import (
 	"context"
 	"strings"
 
+	"github.com/pkg/errors"
+	"gorm.io/gorm"
+
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
 
 func init() {
@@ -34,12 +38,26 @@ func (e *PebbleConfig) Data() any { return e }
 
 func (e *PebbleConfig) Unmarshal(any) error { return nil }
 
-func (e *PebbleConfig) Handle(ctx context.Context) error {
-	// update device set config = $appid where id = $imei
-	// appv2 := select * from app_v2 where id = $appid
-	// if appv2 is not exist, return nil
-	// notify device config updated
-	// payload: appv2.Data
-	// topic: backend/$imei/config
-	return nil
+func (e *PebbleConfig) Handle(ctx context.Context) (err error) {
+	defer func() { WrapHandleError(err, e) }()
+
+	md := &models.Device{ID: e.Imei}
+	fs := map[string]any{"config": e.Config}
+	if err = UpdateByPrimary(ctx, md, e.Imei, fs); err != nil {
+		return err
+	}
+
+	app := &models.AppV2{ID: e.Config}
+	if err = FetchByPrimary(ctx, app, e.Config); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	return PublicMqttMessage(ctx,
+		"pebble_config",
+		"backend/"+e.Imei+"/config",
+		app.Data,
+	)
 }

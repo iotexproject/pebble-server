@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
 
 func init() {
@@ -39,10 +40,18 @@ func (e *PebbleProposal) Data() any { return e }
 
 func (e *PebbleProposal) Unmarshal(any) error { return nil }
 
-func (e *PebbleProposal) Handle(ctx context.Context) error {
-	// insert into device
-	// id=$imei,address=$device,proposer='',name=$name,avatar=$avatar,status=PROPOSAL
-	// created_at,updated_at
-	// on conflict update proposer,name,avatar,status,updated_at
-	return nil
+func (e *PebbleProposal) Handle(ctx context.Context) (err error) {
+	defer func() { err = WrapHandleError(err, e) }()
+
+	dev := &models.Device{
+		ID:             e.Imei,
+		Name:           e.Name,
+		Address:        e.Device.String(),
+		Avatar:         e.Avatar,
+		Status:         models.PROPOSAL,
+		Proposer:       e.Owner.String(),
+		OperationTimes: models.NewOperationTimes(),
+	}
+	_, err = UpsertOnConflict(ctx, dev, "id", "name", "avatar", "status", "proposer", "updated_at")
+	return err
 }

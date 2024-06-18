@@ -1,11 +1,11 @@
 package models
 
 type App struct {
-	ID      string `json:"id"`
-	Version string `json:"version"`
-	Uri     string `json:"uri"`
-	Avatar  string `json:"avatar"`
-	Content string `json:"content"`
+	ID      string `gorm:"primary_key"`
+	Version string `gorm:"not null;default:''"`
+	Uri     string `gorm:"not null;default:''"`
+	Avatar  string `gorm:"not null;default:''"`
+	Content string `gorm:"not null;default:''"`
 
 	OperationTimes
 }

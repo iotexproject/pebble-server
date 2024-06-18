@@ -1,9 +1,9 @@
 package models
 
 type Account struct {
-	ID     string
-	Name   string
-	Avatar string
+	ID     string `gorm:"primary_key"`
+	Name   string `gorm:"not null"`
+	Avatar string `gorm:"not null"`
 
 	OperationTimes
 }

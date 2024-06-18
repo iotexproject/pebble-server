@@ -1,75 +1,80 @@
 package event_test
 
 import (
+	"context"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xoctopus/x/contextx"
+	"gorm.io/gorm"
 
-	. "github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
 )
 
-func TestQueryBuilderUpdate(t *testing.T) {
+func TestDatabaseOperations(t *testing.T) {
+	t.Skip("need pg dependencies")
+
 	r := require.New(t)
 
-	now := time.Now()
-	q, vs := BuildUpdateQuery(
-		"account",
-		[]*Assigner{
-			{"id", 1},
-			{"avatar", "any_url"},
-			{"updated_at", now},
-			{"created_at", now},
-		}...,
-	)
+	d := &database.Postgres{}
+	d.SetDefault()
+	d.Endpoint.Username = "test"
+	d.Endpoint.Password = "passwd"
+	r.NoError(d.Init())
 
-	r.Equal(*q, "UPDATE account SET id=?,avatar=?,updated_at=?,created_at=?")
-	r.Len(vs, 4)
-	r.Equal(vs[0], 1)
-	r.Equal(vs[1], "any_url")
-	r.Equal(vs[2], now)
-	r.Equal(vs[3], now)
+	ctx := contextx.WithContextCompose(
+		contexts.WithDatabaseContext(d),
+	)(context.Background())
 
-	q, vs = BuildUpdateQuery(
-		"account",
-		[]*Assigner{
-			{"id", 1},
-			{"avatar", "any_url"},
-			{"updated_at", now},
-			{"created_at", nil},
-		}...,
-	)
-	r.Equal(*q, "UPDATE account SET id=?,avatar=?,updated_at=?")
-	r.Len(vs, 3)
-	r.Equal(vs[0], 1)
-	r.Equal(vs[1], "any_url")
-	r.Equal(vs[2], now)
+	t.Run("UpsertOnConflict", func(t *testing.T) {
+		m := &models.Account{
+			ID:     "111",
+			Name:   "name",
+			Avatar: "avatar",
+		}
 
-	q, vs = BuildUpdateQuery("account")
-	r.Nil(q)
-	r.Nil(vs)
-}
+		err := event.DeleteByPrimary(ctx, m, "111")
 
-func TestQueryBuilderUpsert(t *testing.T) {
-	r := require.New(t)
+		_, err = event.UpsertOnConflict(ctx, m, "id")
+		r.NoError(err)
 
-	now := time.Now()
+		m.Avatar = "avatar2"
+		v, err := event.UpsertOnConflict(ctx, m, "id")
+		r.NoError(err)
+		m2, ok := v.(*models.Account)
+		r.True(ok)
+		r.Equal(*m, *m2)
 
-	q, vs := BuildUpsertOnConflictUpdateOthersQuery(
-		"account", []string{"id", "name"},
-		[]*Assigner{
-			{"id", 10},
-			{"name", "fang"},
-			{"org", "iotx"},
-			{"date", now},
-		}...,
-	)
-	r.Equal(*q, `INSERT INTO account (id,name,org,date) VALUES (?,?,?,?) ON CONFLICT (id,name) DO UPDATE SET date=?,org=?`)
-	r.Len(vs, 4+4-2)
-	r.Equal(vs[0], 10)
-	r.Equal(vs[1], "fang")
-	r.Equal(vs[2], "iotx")
-	r.Equal(vs[3], now)
-	r.Equal(vs[4], "iotx")
-	r.Equal(vs[5], now)
+		m.Avatar = "avatar3"
+		v, err = event.UpsertOnConflict(ctx, m, "id", "avatar")
+		m3, ok := v.(*models.Account)
+		r.True(ok)
+		r.Equal(m3.Avatar, "avatar3")
+	})
+
+	t.Run("DeleteByPrimary", func(t *testing.T) {
+		m := &models.Account{ID: "111"}
+		err := event.DeleteByPrimary(ctx, m, "111")
+		r.NoError(err)
+
+		err = event.FetchByPrimary(ctx, m, "111")
+		r.ErrorIs(err, gorm.ErrRecordNotFound)
+	})
+
+	t.Run("UpdateByPrimary", func(t *testing.T) {
+		m := &models.Account{ID: "111"}
+		err := event.UpdateByPrimary(ctx, m, "111", map[string]any{"avatar": "avatar4"})
+		r.ErrorIs(err, gorm.ErrRecordNotFound)
+
+		_, err = event.UpsertOnConflict(ctx, m, "id")
+		r.NoError(err)
+
+		err = event.UpdateByPrimary(ctx, m, "111", map[string]any{"avatar": "avatar4"})
+		r.NoError(err)
+		r.Equal(m.Name, "")
+		r.Equal(m.Avatar, "avatar4")
+	})
 }

@@ -66,12 +66,13 @@ func (e *DeviceConfirm) Unmarshal(v any) (err error) {
 func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	dev, err := FetchDeviceByIMEI(ctx, e.imei)
+	dev := &models.Device{}
+	err = FetchByPrimary(ctx, dev, e.imei)
 	if err != nil {
-		return
+		return err
 	}
 
-	if dev.Status != int32(models.PROPOSAL) {
+	if dev.Status != models.PROPOSAL {
 		return errors.Errorf("device `%s` is %d, donnt need confirm", dev.ID, dev.Status)
 	}
 

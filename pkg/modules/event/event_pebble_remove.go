@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
@@ -37,24 +38,22 @@ func (e *PebbleRemove) Data() any { return e }
 
 func (e *PebbleRemove) Unmarshal(any) error { return nil }
 
-func (e *PebbleRemove) Handle(ctx context.Context) error {
-	dev := &models.Device{}
+func (e *PebbleRemove) Handle(ctx context.Context) (err error) {
+	defer func() { err = WrapHandleError(err, e) }()
 
+	dev := &models.Device{ID: e.Imei}
+	if err = FetchByPrimary(ctx, dev, e.Imei); err != nil {
+		return err
+	}
 	if dev.Owner != e.Owner.String() {
-		return &HandleError{}
+		return errors.Errorf("without device perimission")
 	}
-
-	status := dev.Status
-	if status == int32(models.CONFIRM) {
-		status = int32(models.CREATED)
+	if dev.Status == models.CONFIRM {
+		dev.Status = models.CREATED
 	}
-	proposer := dev.Proposer
-	if proposer == e.Owner.String() {
-		proposer = ""
+	if dev.Proposer == e.Owner.String() {
+		dev.Proposer = ""
 	}
-
-	// update device set owner = '', status = $status, proposer = $proposer
-	// where id = $e.imei
-
-	return nil
+	_, err = UpsertOnConflict(ctx, dev, "id", "owner", "status", "proposer")
+	return err
 }

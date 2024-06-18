@@ -2,13 +2,10 @@ package event
 
 import (
 	"context"
-	"encoding/json"
 	"strings"
 
 	"github.com/pkg/errors"
-	"github.com/xoctopus/x/misc/must"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
 
@@ -32,16 +29,15 @@ func (e *DeviceQuery) UnmarshalTopic(topic []byte) error {
 }
 
 func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
-	mq := must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
-
 	defer func() { err = WrapHandleError(err, e) }()
 
-	dev, err := FetchDeviceByIMEI(ctx, e.imei)
+	dev := &models.Device{}
+	err = FetchByPrimary(ctx, dev, e.imei)
 	if err != nil {
 		return err
 	}
 
-	if dev.Status == int32(models.CREATED) {
+	if dev.Status == models.CREATED {
 		return errors.Errorf("device %s is not propsaled", dev.ID)
 	}
 
@@ -51,7 +47,8 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 		version  string
 	)
 	if parts := strings.Split(dev.RealFirmware, " "); len(parts) == 2 {
-		app, err := FetchFirmwareByID(ctx, parts[0])
+		app := &models.App{}
+		err = FetchByPrimary(ctx, app, parts[0])
 		if err != nil {
 			return err
 		}
@@ -60,27 +57,20 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 		version = app.Version
 	}
 
-	cli, err := mq.NewClient(
-		"device_query_rsp",
-		strings.Join([]string{"backend", e.imei, "status"}, "/"),
+	return PublicMqttMessage(ctx,
+		"device_query", "backend/"+e.imei+"/status",
+		&struct {
+			Status   int32  `json:"status"`
+			Proposer string `json:"proposer,omitempty"`
+			Firmware string `json:"firmware,omitempty"`
+			URI      string `json:"uri,omitempty"`
+			Version  string `json:"version,omitempty"`
+		}{
+			Status:   dev.Status,
+			Proposer: dev.Proposer,
+			Firmware: firmware,
+			URI:      uri,
+			Version:  version,
+		},
 	)
-	if err != nil {
-		return err
-	}
-	defer mq.Close(cli)
-
-	err = cli.Publish(must.NoErrorV(json.Marshal(&struct {
-		Status   int32  `json:"status"`
-		Proposer string `json:"proposer,omitempty"`
-		Firmware string `json:"firmware,omitempty"`
-		URI      string `json:"uri,omitempty"`
-		Version  string `json:"version,omitempty"`
-	}{
-		Status:   dev.Status,
-		Proposer: dev.Proposer,
-		Firmware: firmware,
-		URI:      uri,
-		Version:  version,
-	})))
-	return
 }

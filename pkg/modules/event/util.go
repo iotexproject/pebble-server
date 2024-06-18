@@ -5,21 +5,18 @@ import (
 	"context"
 	"crypto/elliptic"
 	"encoding/binary"
+	"encoding/json"
 	"hash"
 	"io"
-	"sort"
-	"strings"
 
 	"github.com/dustinxie/ecc"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
 	"golang.org/x/crypto/sha3"
-	"gorm.io/gorm/schema"
+	"gorm.io/gorm/clause"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
 
 var gByteOrder = binary.BigEndian
@@ -106,11 +103,15 @@ func (i *IMEI) SetIMEI(v string) { i.imei = v }
 
 func (i *IMEI) GetIMEI() string { return i.imei }
 
+type CanSetTxHash interface {
+	SetTxHash(l *types.Log)
+}
+
 type TxHash struct {
 	hash common.Hash
 }
 
-func (h *TxHash) Set(log *types.Log) {
+func (h *TxHash) SetTxHash(log *types.Log) {
 	h.hash = log.TxHash
 }
 
@@ -122,120 +123,63 @@ func (h TxHash) String() string {
 	return h.hash.String()
 }
 
-func FetchDeviceByIMEI(ctx context.Context, imei string) (*models.Device, error) {
-	return nil, nil
-}
-
-func FetchFirmwareByID(ctx context.Context, id string) (*models.App, error) {
-	return nil, nil
-}
-
-type Assigner struct {
-	Name string
-	V    any
-}
-
-func Update(ctx context.Context, t schema.Tabler, kvs ...*Assigner) error {
+func UpsertOnConflict(ctx context.Context, m any, conflict string, updates ...string) (any, error) {
 	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
-	q, vs := BuildUpdateQuery(t.TableName(), kvs...)
-	if q == nil {
-		return nil
+
+	cond := clause.OnConflict{
+		Columns: []clause.Column{{Name: conflict}},
 	}
-	return db.Exec(*q, vs...).Error
+	if len(updates) == 0 {
+		cond.DoNothing = true
+	} else {
+		cond.DoUpdates = clause.AssignmentColumns(updates)
+	}
+	if err := db.Clauses(cond).Create(m).Error; err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
-func UpsertOnConflictUpdateOthers(ctx context.Context, t schema.Tabler, cs []string, kvs ...*Assigner) error {
+func DeleteByPrimary(ctx context.Context, m any, pk any) error {
 	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
-	q, vs := BuildUpsertOnConflictUpdateOthersQuery(t.TableName(), cs, kvs...)
-	if q == nil {
-		return nil
-	}
-	return db.Exec(*q, vs...).Error
+	return db.Delete(m, pk).Error
 }
 
-func UpsertOnConflictDoNothing(ctx context.Context, t schema.Tabler, cs []string, kvs ...*Assigner) error {
-	return nil
+func UpdateByPrimary(ctx context.Context, m any, pk any, fields map[string]any) error {
+	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
+
+	if err := FetchByPrimary(ctx, m, pk); err != nil {
+		return err
+	}
+
+	return db.Model(m).Updates(fields).Error
 }
 
-func BuildUpdateQuery(table string, kvs ...*Assigner) (*string, []any) {
-	if len(kvs) == 0 {
-		return nil, nil
-	}
-
-	vs := make([]any, 0, len(kvs))
-
-	assignments := make([]string, 0, len(kvs))
-	for _, pair := range kvs {
-		if pair.Name == "" || pair.V == nil {
-			continue
-		}
-		assignments = append(assignments, pair.Name+"=?")
-		vs = append(vs, pair.V)
-	}
-
-	if len(vs) == 0 {
-		return nil, nil
-	}
-
-	q := `UPDATE ` + table + ` SET ` + strings.Join(assignments, ",")
-
-	return &q, vs
+func FetchByPrimary(ctx context.Context, m any, pk any) error {
+	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
+	return db.First(m, pk).Error
 }
 
-func BuildUpsertOnConflictUpdateOthersQuery(table string, conflicts []string, kvs ...*Assigner) (*string, []any) {
-	if len(kvs) == 0 {
-		return nil, nil
+func PublicMqttMessage(ctx context.Context, id, topic string, v any) error {
+	mq := must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
+
+	cli, err := mq.NewClient(id, topic)
+	if err != nil {
+		return err
 	}
+	defer mq.Close(cli)
 
-	vs := make([]any, 0, len(kvs)+len(conflicts))
-	vm := map[string]any{}
-
-	valuenames := make([]string, 0, len(kvs))
-	valueholders := make([]string, 0, len(kvs))
-	for _, pair := range kvs {
-		if pair.Name == "" || pair.V == nil {
-			continue
-		}
-		valuenames = append(valuenames, pair.Name)
-		if _, ok := vm[pair.Name]; ok {
-			panic(errors.Errorf("assigner name %s duplicated", pair.Name))
-		}
-		vm[pair.Name] = pair.V
-		vs = append(vs, pair.V)
-		valueholders = append(valueholders, "?")
-	}
-
-	if len(valuenames) == 0 {
-		return nil, nil
-	}
-
-	conflictnames := make([]string, 0, len(conflicts))
-	conflictkv := map[string]struct{}{}
-	for _, name := range conflicts {
-		_, ok := vm[name]
-		if !ok {
-			panic(errors.Errorf("conflict name %s not in upsert list", name))
-		}
-		conflictnames = append(conflictnames, name)
-		conflictkv[name] = struct{}{}
-	}
-
-	otherassignments := make([]string, 0)
-	for name, v := range vm {
-		if _, ok := conflictkv[name]; !ok && name != "created_at" {
-			otherassignments = append(otherassignments, name+"=?")
-			vs = append(vs, v)
+	var data any
+	switch data.(type) {
+	case string:
+		data = v
+	case []byte:
+		data = v
+	default:
+		data, err = json.Marshal(v)
+		if err != nil {
+			return err
 		}
 	}
-	sort.Slice(otherassignments, func(i, j int) bool {
-		return otherassignments[i] < otherassignments[j]
-	})
-
-	q := `INSERT INTO ` + table + ` (` + strings.Join(valuenames, ",") + `) VALUES (` +
-		strings.Join(valueholders, ",") + `)`
-	if len(conflicts) > 0 {
-		q += ` ON CONFLICT (` + strings.Join(conflictnames, ",") + `) DO UPDATE SET ` +
-			strings.Join(otherassignments, ",")
-	}
-	return &q, vs
+	return cli.Publish(data)
 }

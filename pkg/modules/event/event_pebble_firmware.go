@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
 
 func init() {
@@ -34,12 +35,34 @@ func (e *PebbleFirmware) Data() any { return e }
 
 func (e *PebbleFirmware) Unmarshal(any) error { return nil }
 
-func (e *PebbleFirmware) Handle(ctx context.Context) error {
-	// app := select * from app where id = $appid
-	// if app is not exist, return err
-	// update device set firmware = '$app.id app.version' where id = $imei
-	// notify device firmware updated
-	// payload {firmware: $appid, uri: app.uri, version: app.version}
-	// topic: backend/$imei/firmware
+func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
+	defer func() { err = WrapHandleError(err, e) }()
+
+	app := &models.App{ID: e.App}
+	if err = FetchByPrimary(ctx, app, e.Imei); err != nil {
+		return err
+	}
+
+	dev := &models.Device{
+		ID:       e.Imei,
+		Firmware: app.ID + " " + app.Version,
+	}
+	err = UpdateByPrimary(ctx, dev, e.Imei, map[string]any{"firmware": dev.Firmware})
+	if err != nil {
+		return err
+	}
+
+	return PublicMqttMessage(ctx,
+		"pebble_firmware", "backend/"+e.Imei+"/firmware",
+		&struct {
+			Firmware string `json:"firmware"`
+			Uri      string `json:"uri"`
+			Version  string `json:"version"`
+		}{
+			Firmware: e.App,
+			Uri:      app.Uri,
+			Version:  app.Version,
+		},
+	)
 	return nil
 }

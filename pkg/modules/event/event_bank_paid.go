@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/xoctopus/x/misc/must"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
@@ -26,8 +24,7 @@ type BankPaid struct {
 	Amount    *big.Int
 	Timestamp *big.Int
 	Balance   *big.Int
-
-	h common.Hash
+	TxHash
 }
 
 func (e *BankPaid) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
@@ -44,46 +41,31 @@ func (e *BankPaid) EventName() string { return "Paid" }
 
 func (e *BankPaid) Data() any { return e }
 
-func (e *BankPaid) Unmarshal(v any) error {
-	log, ok := v.(*types.Log)
-	must.BeTrueWrap(ok, "expect *types.Log to unmarshal `%t`, but got `%t`", e, v)
-	e.h = log.TxHash
-	return nil
-}
+func (e *BankPaid) Unmarshal(any) error { return nil }
 
 func (e *BankPaid) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
 	br := &models.BankRecord{
-		ID:        e.h.String() + "-" + e.Timestamp.String(),
-		To:        e.To.String(),
-		Amount:    e.Amount.String(),
-		Timestamp: time.Now().Unix(),
-		Type:      2,
+		ID:             e.hash.String() + "-" + e.Timestamp.String(),
+		From:           e.From.String(),
+		To:             e.To.String(),
+		Amount:         e.Amount.String(),
+		Timestamp:      time.Now().Unix(),
+		Type:           models.BankRecodePaid,
+		OperationTimes: models.NewOperationTimes(),
 	}
-
-	err = UpsertOnConflictDoNothing(ctx, br, []string{"id"}, []*Assigner{
-		{"id", br.ID},
-		{"from", ""},
-		{"to", br.To},
-		{"amount", br.Amount},
-		{"timestamp", br.Timestamp},
-		{"type", br.Type},
-		{"updated_at", time.Now()},
-		{"created_at", time.Now()},
-	}...)
-	if err != nil {
-		return
-	}
-
 	b := &models.Bank{
-		Address: e.To.String(),
-		Balance: e.Balance.String(),
+		Address:        e.From.String(),
+		Balance:        e.Balance.String(),
+		OperationTimes: models.NewOperationTimes(),
 	}
-	return UpsertOnConflictUpdateOthers(ctx, b, []string{"address"}, []*Assigner{
-		{"address", b.Address},
-		{"balance", b.Balance},
-		{"updated_at", time.Now()},
-		{"created_at", time.Now()},
-	}...)
+
+	_, err = UpsertOnConflict(ctx, br, "id")
+	if err != nil {
+		return err
+	}
+
+	_, err = UpsertOnConflict(ctx, b, "address", "balance", "updated_at")
+	return err
 }
