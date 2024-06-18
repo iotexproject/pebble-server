@@ -7,4 +7,8 @@ type BankRecord struct {
 	Amount    string `json:"amount"`
 	Timestamp int64  `json:"timestamp"`
 	Type      int32  `json:"type"`
+
+	OperationTimes
 }
+
+func (*BankRecord) TableName() string { return "bank_record" }

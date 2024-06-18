@@ -11,11 +11,7 @@ import (
 )
 
 func init() {
-	f := func() Event {
-		return &BankWithdraw{
-			contractID: enums.CONTRACT__PEBBLE_BANK,
-		}
-	}
+	f := func() Event { return &BankWithdraw{} }
 	e := f()
 	registry(e.Topic(), f)
 }
@@ -25,29 +21,19 @@ type BankWithdraw struct {
 	To      common.Address
 	Amount  *big.Int
 	Balance *big.Int
-
-	contractID string
 }
 
-func (e *BankWithdraw) Source() SourceType {
-	return SourceTypeBlockchain
-}
+func (e *BankWithdraw) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
 
 func (e *BankWithdraw) Topic() string {
-	return network.Topic(e.contractID) + "__" + strings.ToUpper(e.EventName())
+	return strings.Join([]string{
+		"TOPIC", e.ContractID(), strings.ToUpper(e.EventName()),
+	}, "__")
 }
 
-func (e *BankWithdraw) ContractID() string {
-	return network.ContractID(e.contractID)
-}
+func (e *BankWithdraw) ContractID() string { return enums.CONTRACT__PEBBLE_BANK }
 
-func (e *BankWithdraw) EventName() string {
-	return "Withdraw"
-}
-
-func (e *BankWithdraw) SubscriberID() string {
-	return network.SubscriberID(e.contractID)
-}
+func (e *BankWithdraw) EventName() string { return "Withdraw" }
 
 func (e *BankWithdraw) Data() any { return e }
 

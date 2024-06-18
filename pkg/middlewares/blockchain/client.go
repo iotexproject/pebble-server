@@ -18,8 +18,11 @@ type EthClient struct {
 }
 
 func (c *EthClient) Init() error {
-	if c.Network == NETWORK_UNKNOWN {
-		return errors.Errorf("invalid network: %d", c.Network)
+	if c.Network == NETWORK_UNKNOWN || c.Endpoint == "" {
+		return errors.Errorf(
+			"invalid network or endpoint: [%d] [%s]",
+			c.Network, c.Endpoint,
+		)
 	}
 
 	client, err := ethclient.Dial(c.Endpoint)

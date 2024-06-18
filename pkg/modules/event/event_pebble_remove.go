@@ -4,47 +4,34 @@ import (
 	"context"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/ethutil/address"
 )
 
 func init() {
-	f := func() Event {
-		return &PebbleRemove{
-			contractID: enums.CONTRACT__PEBBLE_DEVICE,
-		}
-	}
+	f := func() Event { return &PebbleRemove{} }
 	e := f()
 	registry(e.Topic(), f)
 }
 
 type PebbleRemove struct {
-	imei  string
-	owner address.Address
-
-	contractID string
+	Imei  string
+	Owner common.Address
 }
 
-func (e *PebbleRemove) Source() SourceType {
-	return SourceTypeBlockchain
-}
+func (e *PebbleRemove) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
 
 func (e *PebbleRemove) Topic() string {
-	return network.Topic(e.contractID) + "__" + strings.ToUpper(e.EventName())
+	return strings.Join([]string{
+		"TOPIC", e.ContractID(), strings.ToUpper(e.EventName()),
+	}, "__")
 }
 
-func (e *PebbleRemove) ContractID() string {
-	return network.ContractID(e.contractID)
-}
+func (e *PebbleRemove) ContractID() string { return enums.CONTRACT__PEBBLE_DEVICE }
 
-func (e *PebbleRemove) EventName() string {
-	return "Withdraw"
-}
-
-func (e *PebbleRemove) SubscriberID() string {
-	return network.SubscriberID(e.contractID)
-}
+func (e *PebbleRemove) EventName() string { return "Withdraw" }
 
 func (e *PebbleRemove) Data() any { return e }
 
@@ -53,7 +40,7 @@ func (e *PebbleRemove) Unmarshal(any) error { return nil }
 func (e *PebbleRemove) Handle(ctx context.Context) error {
 	dev := &models.Device{}
 
-	if dev.Owner != e.owner.String() {
+	if dev.Owner != e.Owner.String() {
 		return &HandleError{}
 	}
 
@@ -62,7 +49,7 @@ func (e *PebbleRemove) Handle(ctx context.Context) error {
 		status = int32(models.CREATED)
 	}
 	proposer := dev.Proposer
-	if proposer == e.owner.String() {
+	if proposer == e.Owner.String() {
 		proposer = ""
 	}
 

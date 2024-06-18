@@ -10,11 +10,7 @@ import (
 )
 
 func init() {
-	f := func() Event {
-		return &PebbleConfirm{
-			contractID: enums.CONTRACT__PEBBLE_DEVICE,
-		}
-	}
+	f := func() Event { return &PebbleConfirm{} }
 	e := f()
 	registry(e.Topic(), f)
 }
@@ -24,29 +20,19 @@ type PebbleConfirm struct {
 	Owner   common.Address
 	Device  common.Address
 	Channel uint32
-
-	contractID string
 }
 
-func (e *PebbleConfirm) Source() SourceType {
-	return SourceTypeBlockchain
-}
+func (e *PebbleConfirm) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
 
 func (e *PebbleConfirm) Topic() string {
-	return network.Topic(e.contractID) + "__" + strings.ToUpper(e.EventName())
+	return strings.Join([]string{
+		"TOPIC", e.ContractID(), strings.ToUpper(e.EventName()),
+	}, "__")
 }
 
-func (e *PebbleConfirm) ContractID() string {
-	return network.ContractID(e.contractID)
-}
+func (e *PebbleConfirm) ContractID() string { return enums.CONTRACT__PEBBLE_DEVICE }
 
-func (e *PebbleConfirm) EventName() string {
-	return "Confirm"
-}
-
-func (e *PebbleConfirm) SubscriberID() string {
-	return network.SubscriberID(e.contractID)
-}
+func (e *PebbleConfirm) EventName() string { return "Confirm" }
 
 func (e *PebbleConfirm) Data() any { return e }
 

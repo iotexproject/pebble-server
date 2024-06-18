@@ -32,7 +32,7 @@ func TestBlockchain_Init(t *testing.T) {
 	t.Run("InitClients", func(t *testing.T) {
 		t.Run("FailedToInitClient", func(t *testing.T) {
 			bc := &Blockchain{
-				Clients: []*EthClient{{Network: NETWORK_UNKNOWN}},
+				Clients: []*EthClient{{Network: NETWORK__IOTX_MAINNET}},
 			}
 			bc.SetDefault()
 			r.ErrorContains(bc.Init(), "invalid network")
@@ -41,7 +41,8 @@ func TestBlockchain_Init(t *testing.T) {
 			bc := &Blockchain{
 				Clients: []*EthClient{
 					{Network: NETWORK__IOTX_TESTNET, Endpoint: "https://babel-api.testnet.iotex.io"},
-					{Network: NETWORK__IOTX_TESTNET, Endpoint: "https://babel-api.testnet.iotex.io"},
+					{Network: NETWORK__IOTX_MAINNET, Endpoint: "https://babel-api.mainnet.iotex.io"},
+					{Network: NETWORK__IOTX_MAINNET, Endpoint: "https://babel-api.mainnet.iotex.io"},
 				},
 			}
 			bc.SetDefault()
@@ -52,27 +53,36 @@ func TestBlockchain_Init(t *testing.T) {
 	t.Run("InitContracts", func(t *testing.T) {
 		t.Run("NetworkNotFound", func(t *testing.T) {
 			contract := ptrx.Ptr(*contract1)
-			contract.Network = Network(10) // network not configured
+			contract.Network = NETWORK__IOTX_MAINNET
+			contract.Address = common.Address{}
 
 			bc := &Blockchain{Contracts: []*Contract{contract}}
 			bc.SetDefault()
-			r.ErrorContains(bc.Init(), "contract network `10` not found")
+			r.ErrorContains(bc.Init(), "invalid contract")
 		})
 		t.Run("FailedToInitContract", func(t *testing.T) {
 			contract := ptrx.Ptr(*contract1)
 			contract.ID = ""
+			contract.Network = NETWORK__IOTX_MAINNET
 
 			bc := &Blockchain{Contracts: []*Contract{contract}}
 			bc.SetDefault()
 			r.ErrorContains(bc.Init(), "failed to init contract")
 		})
 		t.Run("ContractIDConflict", func(t *testing.T) {
-			bc := &Blockchain{Contracts: []*Contract{ptrx.Ptr(*contract1), ptrx.Ptr(*contract1)}}
+			bc := &Blockchain{
+				Network:   NETWORK__IOTX_TESTNET,
+				Contracts: []*Contract{ptrx.Ptr(*contract1), ptrx.Ptr(*contract1)},
+			}
 			bc.SetDefault()
+
 			r.ErrorContains(bc.Init(), "contract id `SproutProjectRegistrar` duplicated")
 		})
 		t.Run("ContractAddressOrNetworkConflict", func(t *testing.T) {
-			bc := &Blockchain{Contracts: []*Contract{ptrx.Ptr(*contract1), ptrx.Ptr(*contract1)}}
+			bc := &Blockchain{
+				Network:   NETWORK__IOTX_TESTNET,
+				Contracts: []*Contract{ptrx.Ptr(*contract1), ptrx.Ptr(*contract1)},
+			}
 			bc.Contracts[0].ID = "any"
 			bc.SetDefault()
 			r.ErrorContains(bc.Init(), "contract `SproutProjectRegistrar` duplicated with `any`")
@@ -90,7 +100,7 @@ func TestBlockchain_Init(t *testing.T) {
 			}
 			bc.SetDefault()
 			err := bc.Init()
-			r.ErrorContains(err, "failed to init persistence")
+			r.ErrorContains(err, "failed to init bc persistence")
 			r.ErrorContains(err, t.Name())
 		})
 	})
@@ -109,8 +119,10 @@ func TestBlockchain_Init(t *testing.T) {
 			r.NoError(p.Close())
 
 			bc := &Blockchain{
+				Network:     contract1.Network,
 				PersistPath: p.Path,
 				Contracts:   []*Contract{ptrx.Ptr(*contract1)},
+				AutoRun:     true,
 			}
 			bc.SetDefault()
 
@@ -120,22 +132,17 @@ func TestBlockchain_Init(t *testing.T) {
 	})
 
 	bc := &Blockchain{
+		Network:     contract1.Network,
 		PersistPath: dir(t),
 		Contracts:   []*Contract{ptrx.Ptr(*contract1)},
+		AutoRun:     true,
 	}
 	bc.SetDefault()
 
 	t.Run("Success", func(t *testing.T) {
 		r.NoError(bc.Init())
-	})
-
-	t.Run("Ext", func(t *testing.T) {
-		r.NotNil(bc.ClientByNetwork(NETWORK__IOTX_MAINNET))
-		r.NotNil(bc.ClientByNetwork(NETWORK__IOTX_TESTNET))
-		r.Nil(bc.ClientByNetwork(100))
-
+		r.NotNil(bc.ClientByNetwork())
 		r.NotNil(bc.ContractByID("SproutProjectRegistrar"))
-
 		r.NotNil(bc.Monitor("SproutProjectRegistrar", "ProjectRegistered"))
 		r.Nil(bc.Monitor("not-found-contract", "ProjectRegistered"))
 		r.Nil(bc.Monitor("SproutProjectRegistrar", "not-found-event"))

@@ -7,13 +7,16 @@ import (
 	"os/signal"
 
 	"github.com/go-logr/logr"
+	"github.com/spf13/cobra"
 	"github.com/xoctopus/confx/confapp"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
+	"github.com/xoctopus/x/misc/must"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
 )
 
@@ -37,6 +40,7 @@ var (
 			Contracts:   contracts,
 			PersistPath: "",
 		},
+		Database: &database.Postgres{},
 	}
 	ctx context.Context
 )
@@ -60,20 +64,40 @@ func init() {
 		confapp.WithMainRoot("."),
 		confapp.WithDefaultConfigGenerator(),
 		confapp.WithMainExecutor(Main),
-		confapp.WithPreRunner(
-			event.InitRunner(ctx),
-		),
 	)
 
 	app.Conf(config)
+
+	app.AddCommand(&cobra.Command{
+		Use:   "migrate",
+		Short: "migrate database",
+		Run: func(cmd *cobra.Command, args []string) {
+			Migrate(ctx)
+		},
+	})
 }
 
 func Main() error {
+	event.InitRunner(ctx)
+
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)
 	<-sig
 
 	return nil
+}
+
+func Migrate(ctx context.Context) {
+	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
+	must.NoErrorWrap(db.AutoMigrate(
+		&models.Account{},
+		&models.App{},
+		&models.AppV2{},
+		&models.Bank{},
+		&models.BankRecord{},
+		&models.Device{},
+		&models.DeviceRecord{},
+	), "failed to migrate database")
 }
 
 func main() {

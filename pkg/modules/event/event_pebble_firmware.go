@@ -8,11 +8,7 @@ import (
 )
 
 func init() {
-	f := func() Event {
-		return &PebbleFirmware{
-			contractID: enums.CONTRACT__PEBBLE_DEVICE,
-		}
-	}
+	f := func() Event { return &PebbleFirmware{} }
 	e := f()
 	registry(e.Topic(), f)
 }
@@ -20,29 +16,19 @@ func init() {
 type PebbleFirmware struct {
 	Imei string
 	App  string
-
-	contractID string
 }
 
-func (e *PebbleFirmware) Source() SourceType {
-	return SourceTypeBlockchain
-}
+func (e *PebbleFirmware) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
 
 func (e *PebbleFirmware) Topic() string {
-	return network.Topic(e.contractID) + "__" + strings.ToUpper(e.EventName())
+	return strings.Join([]string{
+		"TOPIC", e.ContractID(), strings.ToUpper(e.EventName()),
+	}, "__")
 }
 
-func (e *PebbleFirmware) ContractID() string {
-	return network.ContractID(e.contractID)
-}
+func (e *PebbleFirmware) ContractID() string { return enums.CONTRACT__PEBBLE_DEVICE }
 
-func (e *PebbleFirmware) EventName() string {
-	return "Firmware"
-}
-
-func (e *PebbleFirmware) SubscriberID() string {
-	return network.SubscriberID(e.contractID)
-}
+func (e *PebbleFirmware) EventName() string { return "Firmware" }
 
 func (e *PebbleFirmware) Data() any { return e }
 

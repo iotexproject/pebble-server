@@ -6,4 +6,8 @@ type App struct {
 	Uri     string `json:"uri"`
 	Avatar  string `json:"avatar"`
 	Content string `json:"content"`
+
+	OperationTimes
 }
+
+func (*App) TableName() string { return "app" }

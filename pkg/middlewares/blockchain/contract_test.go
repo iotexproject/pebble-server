@@ -22,17 +22,17 @@ func TestContract(t *testing.T) {
 
 	t.Run("InvalidIDOrNetwork", func(t *testing.T) {
 		c := &blockchain.Contract{}
-		r.ErrorContains(c.Init(), "invalid contract id or network")
+		r.ErrorContains(c.Init(), "invalid contract")
 
 		c.ID = "any"
-		r.ErrorContains(c.Init(), "invalid contract id or network")
+		r.ErrorContains(c.Init(), "invalid contract")
 	})
 
 	t.Run("InitEvent", func(t *testing.T) {
 		c := &blockchain.Contract{
 			ID:      "any",
 			Network: blockchain.NETWORK__IOTX_MAINNET,
-			Address: common.Address{},
+			Address: common.HexToAddress("any"),
 			Events: []*blockchain.Event{
 				{Name: "", ABI: ""},
 			},
@@ -65,7 +65,7 @@ func TestContract(t *testing.T) {
 		c := &blockchain.Contract{
 			ID:      "any",
 			Network: blockchain.NETWORK__IOTX_MAINNET,
-			Address: common.Address{},
+			Address: common.HexToAddress("any"),
 			Events: []*blockchain.Event{
 				{Name: "Updated", ABI: abi},
 				{Name: "Updated", ABI: abi},

@@ -8,11 +8,7 @@ import (
 )
 
 func init() {
-	f := func() Event {
-		return &FirmwareUpdated{
-			contractID: enums.CONTRACT__PEBBLE_FIRMWARE,
-		}
-	}
+	f := func() Event { return &FirmwareUpdated{} }
 	e := f()
 	registry(e.Topic(), f)
 }
@@ -22,29 +18,19 @@ type FirmwareUpdated struct {
 	Version string
 	Uri     string
 	Avatar  string
-
-	contractID string
 }
 
-func (e *FirmwareUpdated) Source() SourceType {
-	return SourceTypeBlockchain
-}
+func (e *FirmwareUpdated) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
 
 func (e *FirmwareUpdated) Topic() string {
-	return network.Topic(e.contractID) + "__" + strings.ToUpper(e.EventName())
+	return strings.Join([]string{
+		"TOPIC", e.ContractID(), strings.ToUpper(e.EventName()),
+	}, "__")
 }
 
-func (e *FirmwareUpdated) ContractID() string {
-	return network.ContractID(e.contractID)
-}
+func (e *FirmwareUpdated) ContractID() string { return enums.CONTRACT__PEBBLE_FIRMWARE }
 
-func (e *FirmwareUpdated) EventName() string {
-	return "FirmwareUpdated"
-}
-
-func (e *FirmwareUpdated) SubscriberID() string {
-	return network.SubscriberID(e.contractID)
-}
+func (e *FirmwareUpdated) EventName() string { return "FirmwareUpdated" }
 
 func (e *FirmwareUpdated) Data() any { return e }
 

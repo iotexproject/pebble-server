@@ -1,31 +1,73 @@
 package event
 
-type UnmarshalError struct{}
+import (
+	"encoding/hex"
+	"fmt"
+	"reflect"
+)
 
-func (e *UnmarshalError) Error() string {
-	return ""
+func WrapUnmarshalError(e error, t any) error {
+	if e == nil {
+		return nil
+	}
+	return &UnmarshalError{t, e}
 }
 
-type UnmarshalTopicError struct{}
+type UnmarshalError struct {
+	t any
+	e any
+}
+
+func (e *UnmarshalError) Error() string {
+	return fmt.Sprintf(
+		"failed to unmarshal payload for `%s`: [err:%v]",
+		reflect.Indirect(reflect.ValueOf(e.t)).Type(), e.e,
+	)
+}
+
+type UnmarshalTopicError struct {
+	topic string
+	event any
+}
 
 func (e *UnmarshalTopicError) Error() string {
-	return ""
+	return fmt.Sprintf(
+		"failed to unmarshal topic for `%s` from `%s`",
+		reflect.Indirect(reflect.ValueOf(e.event)).Type(), e.topic,
+	)
+}
+
+func WrapValidateError(v CanValidateSignature) *ValidateError {
+	return &ValidateError{v}
 }
 
 type ValidateError struct {
+	v CanValidateSignature
 }
 
 func (e *ValidateError) Error() string {
-	return ""
+	return fmt.Sprintf(
+		"failed to validate signature for `%s`: [hash: %s] [addr: %s] [sig: %s]",
+		reflect.Indirect(reflect.ValueOf(e.v)).Type(),
+		hex.EncodeToString(e.v.Hash()), e.v.Address(), hex.EncodeToString(e.v.Signature()),
+	)
+}
+
+func WrapHandleError(e error, t any) error {
+	if e == nil {
+		return nil
+	}
+	return &HandleError{t, e}
 }
 
 type HandleError struct {
+	t any
+	e error
 }
 
 func (e *HandleError) Error() string {
-	return ""
-}
-
-type RegistryError struct {
-	v Event
+	return fmt.Sprintf(
+		"failed to handle event `%s`: %s",
+		reflect.Indirect(reflect.ValueOf(e.t)).Type(), e.e.Error(),
+	)
 }

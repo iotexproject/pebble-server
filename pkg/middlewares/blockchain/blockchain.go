@@ -12,6 +12,7 @@ type Blockchain struct {
 	Contracts   []*Contract
 	PersistPath string
 	Network     Network
+	AutoRun     bool
 
 	monitors  sync.Map
 	clients   map[Network]*EthClient
@@ -66,9 +67,6 @@ func (bc *Blockchain) Init() error {
 		if c.Network != bc.Network {
 			continue
 		}
-		if bc.clients[c.Network] == nil {
-			return errors.Errorf("contract network `%d` not found", c.Network)
-		}
 		if err := c.Init(); err != nil {
 			return errors.Wrapf(err, "failed to init contract: %s", c.ID)
 		}
@@ -86,15 +84,46 @@ func (bc *Blockchain) Init() error {
 				)
 			}
 		}
-		bc.contracts[c.ID] = c
+		bc.contracts[bc.Network.String()+"__"+c.ID] = c
 	}
 
 	persist := &Persist{Path: bc.PersistPath}
 	if err := persist.Init(); err != nil {
-		return errors.Wrapf(err, "failed to init persistence")
+		return errors.Wrapf(err, "failed to init bc persistence")
 	}
 	bc.persist = persist
 
+	if bc.AutoRun {
+		return bc.RunMonitors()
+	}
+
+	return nil
+}
+
+func (bc *Blockchain) ClientByNetwork() *EthClient {
+	return bc.clients[bc.Network]
+}
+
+func (bc *Blockchain) ContractByID(id string) *Contract {
+	return bc.contracts[bc.Network.String()+"__"+id]
+}
+
+func (bc *Blockchain) Monitor(id, name string) *Monitor {
+	contract := bc.ContractByID(id)
+	if contract == nil {
+		return nil
+	}
+
+	event, ok := contract.events[name]
+	if !ok {
+		return nil
+	}
+
+	meta := &Meta{contract.Network, contract.Address, event.event.ID}
+	return must.BeTrueV(bc.monitors.Load(meta.MetaID())).(*Monitor)
+}
+
+func (bc *Blockchain) RunMonitors() error {
 	for _, c := range bc.contracts {
 		if c.Network != bc.Network {
 			continue
@@ -109,6 +138,9 @@ func (bc *Blockchain) Init() error {
 				client:  bc.clients[c.Network],
 				persist: bc.persist,
 			}
+			if _, ok := bc.monitors.Load(monitor.Meta); ok {
+				continue
+			}
 			if err := monitor.Init(); err != nil {
 				return errors.Wrapf(
 					err, "failed to init monitor: [network:%s] [contract:%s] [topic:%s]",
@@ -118,29 +150,5 @@ func (bc *Blockchain) Init() error {
 			bc.monitors.Store(monitor.meta, monitor)
 		}
 	}
-
 	return nil
-}
-
-func (bc *Blockchain) ClientByNetwork(network Network) *EthClient {
-	return bc.clients[network]
-}
-
-func (bc *Blockchain) ContractByID(id string) *Contract {
-	return bc.contracts[id]
-}
-
-func (bc *Blockchain) Monitor(contractID, eventName string) *Monitor {
-	contract := bc.contracts[contractID]
-	if contract == nil {
-		return nil
-	}
-
-	event, ok := contract.events[eventName]
-	if !ok {
-		return nil
-	}
-
-	meta := &Meta{contract.Network, contract.Address, event.event.ID}
-	return must.BeTrueV(bc.monitors.Load(meta.MetaID())).(*Monitor)
 }

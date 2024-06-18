@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"bytes"
-	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -63,16 +62,4 @@ func (v *Network) UnmarshalText(data []byte) error {
 	}
 	*v = val
 	return nil
-}
-
-func (v *Network) ContractID(contractID string) string {
-	return strings.Join([]string{v.String(), contractID}, "__")
-}
-
-func (v *Network) SubscriberID(contractID string) string {
-	return strings.Join([]string{"SUB", v.String(), contractID}, "__")
-}
-
-func (v *Network) Topic(contractID string) string {
-	return strings.Join([]string{"TOPIC", v.String(), contractID}, "__")
 }

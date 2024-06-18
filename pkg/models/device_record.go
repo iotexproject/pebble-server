@@ -18,4 +18,8 @@ type DeviceRecord struct {
 	Longitude     string `json:"longitude"`      // longitude varchar(32)
 	Signature     string `json:"signature"`      // signature varchar(256)
 	Timestamp     int64  `json:"timestamp"`      // timestamp int(11)
+
+	OperationTimes
 }
+
+func (*DeviceRecord) TableName() string { return "device_record" }

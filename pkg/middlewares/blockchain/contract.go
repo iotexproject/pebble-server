@@ -21,8 +21,8 @@ type Contract struct {
 }
 
 func (c *Contract) Init() error {
-	if c.ID == "" || c.Network == NETWORK_UNKNOWN {
-		return errors.Errorf("invalid contract id or network")
+	if c.ID == "" || c.Network == NETWORK_UNKNOWN || c.Address.Cmp(common.Address{}) == 0 {
+		return errors.Errorf("invalid contract id, network or address")
 	}
 	for _, event := range c.Events {
 		if err := event.Init(); err != nil {

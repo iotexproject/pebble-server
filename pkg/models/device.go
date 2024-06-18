@@ -8,8 +8,6 @@ const (
 
 type DeviceStatus int32
 
-type Devices []*Device
-
 type Device struct {
 	ID                       string `json:"id"`                          // id varchar(64)
 	Name                     string `json:"name"`                        // name varchar(64)
@@ -31,4 +29,8 @@ type Device struct {
 	State                    int32  `json:"state"`                       // state int(11)
 	Type                     int32  `json:"type"`                        // type int(11)
 	Configurable             bool   `json:"configurable"`                // configurable tinyint(1)
+
+	OperationTimes
 }
+
+func (*Device) TableName() string { return "device" }

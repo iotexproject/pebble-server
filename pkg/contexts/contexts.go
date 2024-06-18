@@ -58,12 +58,12 @@ func BlockchainFromContext(ctx context.Context) (*blockchain.Blockchain, bool) {
 	return v, ok
 }
 
-func EthClientFromContextByNetwork(ctx context.Context, network blockchain.Network) (*blockchain.EthClient, bool) {
+func EthClientFromContextByNetwork(ctx context.Context) (*blockchain.EthClient, bool) {
 	v, ok := ctx.Value(ctxBlockchain{}).(*blockchain.Blockchain)
 	if !ok {
 		return nil, false
 	}
-	c := v.ClientByNetwork(network)
+	c := v.ClientByNetwork()
 	return c, c != nil
 }
 

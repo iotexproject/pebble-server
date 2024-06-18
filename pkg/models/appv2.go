@@ -17,4 +17,8 @@ type AppV2 struct {
 	DirectLink string `json:"direct_link"`
 	Order      int32  `json:"order"`
 	Firmware   string `json:"firmware"`
+
+	OperationTimes
 }
+
+func (*AppV2) TableName() string { return "app_v2" }
