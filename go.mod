@@ -5,6 +5,11 @@ go 1.22.0
 require (
 	github.com/cockroachdb/pebble v1.1.0
 	github.com/dustinxie/ecc v0.0.0-20210511000915-959544187564
+	github.com/golang/protobuf v1.5.4
+	github.com/machinefi/w3bstream-wasm-golang-sdk v1.0.1-0.20230721031543-8268289c55e1
+	github.com/pkg/errors v0.9.1
+	github.com/stretchr/testify v1.8.4
+	golang.org/x/crypto v0.0.0-20220722155217-630584e8d5aa
 	github.com/eclipse/paho.mqtt.golang v1.4.3
 	github.com/ethereum/go-ethereum v1.14.5
 	github.com/go-logr/logr v1.4.2
@@ -21,6 +26,11 @@ require (
 	google.golang.org/protobuf v1.34.2
 	gorm.io/driver/postgres v1.5.9
 	gorm.io/gorm v1.25.10
+)
+
+require (
+	github.com/tidwall/match v1.1.1 // indirect
+	github.com/tidwall/pretty v1.2.1 // indirect
 )
 
 require (
@@ -69,6 +79,7 @@ require (
 	github.com/mmcloughlin/addchain v0.4.0 // indirect
 	github.com/modood/table v0.0.0-20220527013332-8d47e76dad33 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/tidwall/gjson v1.17.1
 	github.com/prometheus/client_golang v1.12.0 // indirect
 	github.com/prometheus/client_model v0.2.1-0.20210607210712-147c58e9608a // indirect
 	github.com/prometheus/common v0.32.1 // indirect
