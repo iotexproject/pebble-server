@@ -94,9 +94,9 @@ func Main() error {
 	event.InitRunner(ctx)()
 	go RunDebugServer(ctx, fmt.Sprintf(":%d", config.ServerPort))
 
-	sig := make(chan os.Signal)
+	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
-	<-sig
+	_ = <-sig
 
 	config.Blockchain.Close()
 	return nil

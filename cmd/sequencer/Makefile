@@ -21,3 +21,6 @@ run: build
 
 clean:
 	@rm -rf example
+
+image:
+	@cd ../.. && docker build -f cmd/sequencer/Dockerfile . -t $(USER)/pebble-sequencer:${VERSION}
