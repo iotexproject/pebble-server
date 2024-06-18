@@ -31,11 +31,13 @@ var (
 
 	app    *confapp.AppCtx
 	config = &struct {
-		MqttBroker *confmqtt.Broker
-		Database   *database.Postgres
-		Blockchain *blockchain.Blockchain
-		Logger     *logger.Logger
-		ServerPort uint16
+		MqttBroker     *confmqtt.Broker
+		Database       *database.Postgres
+		Blockchain     *blockchain.Blockchain
+		Logger         *logger.Logger
+		ServerPort     uint16
+		ProjectID      uint64
+		ProjectVersion string
 	}{
 		Logger:     &logger.Logger{Level: slog.LevelDebug},
 		Blockchain: &blockchain.Blockchain{Contracts: contracts},
@@ -52,6 +54,8 @@ func init() {
 		contexts.WithBlockchainContext(config.Blockchain),
 		contexts.WithDatabaseContext(config.Database),
 		contexts.WithMqttBrokerContext(config.MqttBroker),
+		contexts.WithProjectIDContext(config.ProjectID),
+		contexts.WithProjectVersionContext(config.ProjectVersion),
 	)(context.Background())
 
 	app = confapp.NewAppContext(
@@ -68,6 +72,10 @@ func init() {
 	)
 
 	app.Conf(config)
+	must.BeTrueWrap(
+		config.ProjectVersion != "" && config.ProjectID != 0,
+		"project id and version is required",
+	)
 
 	app.AddCommand(&cobra.Command{
 		Use:   "migrate",
@@ -90,6 +98,7 @@ func Main() error {
 	signal.Notify(sig, os.Interrupt)
 	<-sig
 
+	config.Blockchain.Close()
 	return nil
 }
 
@@ -103,6 +112,8 @@ func Migrate(ctx context.Context) {
 		&models.BankRecord{},
 		&models.Device{},
 		&models.DeviceRecord{},
+		&models.Task{},
+		&models.Message{},
 	), "failed to migrate database")
 }
 

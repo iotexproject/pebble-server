@@ -1,3 +1,5 @@
 build
 cmd/sequencer/pebble-sequencer
 cmd/sequencer/config/local.yml
+cmd/sequencer/project.json
+

@@ -3,12 +3,18 @@ package event
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
 	"google.golang.org/protobuf/proto"
+	"gorm.io/gorm"
 
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/pebblepb"
 )
@@ -21,6 +27,7 @@ func init() {
 type DeviceConfirm struct {
 	IMEI
 	SignatureValidator
+	pkg *pebblepb.ConfirmPackage
 }
 
 func (e *DeviceConfirm) Source() SourceType { return SOURCE_TYPE__MQTT }
@@ -41,6 +48,7 @@ func (e *DeviceConfirm) Unmarshal(v any) (err error) {
 	if err = proto.Unmarshal(data, pkg); err != nil {
 		return
 	}
+	e.pkg = pkg
 
 	var (
 		sig   = pkg.GetSignature()
@@ -63,6 +71,14 @@ func (e *DeviceConfirm) Unmarshal(v any) (err error) {
 	return nil
 }
 
+type message struct {
+	IMEI        string `json:"imei"`
+	Owner       string `json:"owner"`
+	Timestamp   uint32 `json:"timestamp"`
+	Signature   string `json:"signature"`
+	DataChannel int32  `json:"dataChannel"`
+}
+
 func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
@@ -81,6 +97,36 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		return WrapValidateError(e)
 	}
 
-	// todo commit blockchain task to prover
-	return nil
+	id := uuid.NewString()
+	msg := models.Message{
+		MessageID:      dev.Address + fmt.Sprintf("-%d", e.pkg.GetTimestamp()),
+		ClientID:       dev.Address,
+		ProjectID:      must.BeTrueV(contexts.ProjectIDFromContext(ctx)),
+		ProjectVersion: must.BeTrueV(contexts.ProjectVersionFromContext(ctx)),
+		Data: must.NoErrorV(json.Marshal([]message{{
+			IMEI:        e.imei,
+			Owner:       dev.Owner,
+			Timestamp:   e.pkg.GetTimestamp(),
+			Signature:   hex.EncodeToString(e.pkg.GetSignature()),
+			DataChannel: dev.DataChannel,
+		}})),
+		InternalTaskID: id,
+	}
+	task := &models.Task{
+		ProjectID:      must.BeTrueV(contexts.ProjectIDFromContext(ctx)),
+		InternalTaskID: id,
+		MessageIDs:     []byte(`[` + id + `]`),
+		Signature:      "",
+	}
+
+	db, _ := contexts.DatabaseFromContext(ctx)
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err = tx.Create(msg).Error; err != nil {
+			return err
+		}
+		if err = tx.Create(task).Error; err != nil {
+			return err
+		}
+		return nil
+	})
 }

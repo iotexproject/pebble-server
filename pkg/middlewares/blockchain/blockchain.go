@@ -168,7 +168,9 @@ type MonitorInfo struct {
 	Network     Network        `json:"network"`
 	Endpoint    string         `json:"endpoint"`
 	Contract    common.Address `json:"contract"`
-	Topic       common.Hash    `name:"topic"`
+	Topic       common.Hash    `json:"topic"`
+	StartedAt   uint64         `json:"startedAt"`
+	Current     uint64         `json:"current"`
 	Subscribers []*struct {
 		Name      string `json:"name"`
 		StartedAt uint64 `json:"startedAt"`
@@ -202,8 +204,11 @@ func (bc *Blockchain) MonitorsInfo() []*MonitorInfo {
 	})
 
 	for _, m := range monitors {
+		start, current, _ := bc.persist.MetaRange(m.meta)
+		m.StartedAt = start
+		m.Current = current
 		for _, s := range m.Subscribers {
-			start, current, _ := bc.persist.QueryWatcher(m.meta, s.Name)
+			start, current, _ = bc.persist.QueryWatcher(m.meta, s.Name)
 			s.StartedAt = start
 			s.Current = current
 		}

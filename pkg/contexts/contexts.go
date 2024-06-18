@@ -12,11 +12,13 @@ import (
 )
 
 type (
-	ctxLogger     struct{}
-	ctxMqttBroker struct{}
-	ctxMqttClient struct{}
-	ctxBlockchain struct{}
-	ctxDatabase   struct{}
+	ctxLogger         struct{}
+	ctxMqttBroker     struct{}
+	ctxMqttClient     struct{}
+	ctxBlockchain     struct{}
+	ctxDatabase       struct{}
+	ctxProjectID      struct{}
+	ctxProjectVersion struct{}
 )
 
 func LoggerFromContext(ctx context.Context) (*logger.Logger, bool) {
@@ -80,5 +82,27 @@ func DatabaseFromContext(ctx context.Context) (*database.Postgres, bool) {
 func WithDatabaseContext(v *database.Postgres) contextx.WithContext {
 	return func(ctx context.Context) context.Context {
 		return context.WithValue(ctx, ctxDatabase{}, v)
+	}
+}
+
+func ProjectIDFromContext(ctx context.Context) (uint64, bool) {
+	v, ok := ctx.Value(ctxProjectID{}).(uint64)
+	return v, ok
+}
+
+func WithProjectIDContext(v uint64) contextx.WithContext {
+	return func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, ctxProjectID{}, v)
+	}
+}
+
+func ProjectVersionFromContext(ctx context.Context) (string, bool) {
+	v, ok := ctx.Value(ctxProjectVersion{}).(string)
+	return v, ok
+}
+
+func WithProjectVersionContext(v string) contextx.WithContext {
+	return func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, ctxProjectVersion{}, v)
 	}
 }
