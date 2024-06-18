@@ -3,6 +3,7 @@ package blockchain
 import (
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
 )
@@ -87,14 +88,24 @@ func (bc *Blockchain) Init() error {
 		bc.contracts[bc.Network.String()+"__"+c.ID] = c
 	}
 
-	persist := &Persist{Path: bc.PersistPath}
-	if err := persist.Init(); err != nil {
+	var (
+		err     error
+		persist = &Persist{Path: bc.PersistPath}
+	)
+	defer func() {
+		if err != nil && persist != nil {
+			persist.Close()
+		}
+	}()
+
+	if err = persist.Init(); err != nil {
 		return errors.Wrapf(err, "failed to init bc persistence")
 	}
 	bc.persist = persist
 
 	if bc.AutoRun {
-		return bc.RunMonitors()
+		err = bc.RunMonitors()
+		return err
 	}
 
 	return nil
@@ -124,7 +135,7 @@ func (bc *Blockchain) Monitor(id, name string) *Monitor {
 }
 
 func (bc *Blockchain) RunMonitors() error {
-	for _, c := range bc.contracts {
+	for name, c := range bc.contracts {
 		if c.Network != bc.Network {
 			continue
 		}
@@ -135,6 +146,7 @@ func (bc *Blockchain) RunMonitors() error {
 					Contract: c.Address,
 					Topic:    event.event.ID,
 				},
+				name:    name + "__" + event.Name,
 				client:  bc.clients[c.Network],
 				persist: bc.persist,
 			}
@@ -151,4 +163,53 @@ func (bc *Blockchain) RunMonitors() error {
 		}
 	}
 	return nil
+}
+
+type MonitorInfo struct {
+	Name        string         `json:"name"`
+	Network     Network        `json:"network"`
+	Endpoint    string         `json:"endpoint"`
+	Contract    common.Address `json:"contract"`
+	Topic       common.Hash    `name:"topic"`
+	Subscribers []*struct {
+		Name      string `json:"name"`
+		StartedAt uint64 `json:"startedAt"`
+		Current   uint64 `json:"current"`
+	} `json:"subscribers"`
+	meta MetaID
+}
+
+func (bc *Blockchain) MonitorsInfo() []*MonitorInfo {
+	monitors := make([]*MonitorInfo, 0)
+	bc.monitors.Range(func(_, v any) bool {
+		m := v.(*Monitor)
+		vv := &MonitorInfo{
+			Name:     m.name,
+			Network:  m.Network(),
+			Endpoint: m.Endpoint(),
+			Contract: m.ContractAddress(),
+			Topic:    m.Topic(),
+			meta:     m.MetaID(),
+		}
+		monitors = append(monitors, vv)
+		m.subs.Range(func(key, _ any) bool {
+			vv.Subscribers = append(vv.Subscribers, &struct {
+				Name      string `json:"name"`
+				StartedAt uint64 `json:"startedAt"`
+				Current   uint64 `json:"current"`
+			}{Name: key.(string), StartedAt: 0, Current: 0})
+			return true
+		})
+		return true
+	})
+
+	for _, m := range monitors {
+		for _, s := range m.Subscribers {
+			start, current, _ := bc.persist.QueryWatcher(m.meta, s.Name)
+			s.StartedAt = start
+			s.Current = current
+		}
+	}
+
+	return monitors
 }

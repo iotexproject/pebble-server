@@ -29,6 +29,7 @@ type Monitor struct {
 	persist TxPersistence
 	cancel  context.CancelFunc
 	subs    sync.Map
+	name    string
 }
 
 func (m *Monitor) Init() error {
@@ -39,6 +40,7 @@ func (m *Monitor) Init() error {
 		return errors.Wrap(err, "failed to load monitor range")
 	}
 
+	m.current.Store(1)
 	if end != 0 {
 		m.current.Store(end)
 	}
@@ -46,13 +48,14 @@ func (m *Monitor) Init() error {
 	go m.run(ctx)
 	m.cancel = cancel
 
-	logger.Info("monitor started", m.fields()...)
+	l.Info("monitor started", m.fields()...)
 
 	return nil
 }
 
 func (m *Monitor) fields(others ...any) []any {
 	return append(others,
+		"name", m.name,
 		"current", m.current.Load(),
 		"network", m.Network(),
 		"endpoint", m.client.ChainEndpoint(),
@@ -68,11 +71,6 @@ func (m *Monitor) WithPersistence(p TxPersistence) *Monitor {
 
 func (m *Monitor) WithEthClient(c MonitorClient) *Monitor {
 	m.client = c
-	return m
-}
-
-func (m *Monitor) WithStartBlock(from uint64) *Monitor {
-	m.current.Store(from)
 	return m
 }
 
@@ -119,7 +117,7 @@ func (m *Monitor) run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			logger.Info("monitor stopped", m.fields("error", ctx.Err())...)
+			l.Info("monitor stopped", m.fields()...)
 			return
 		default:
 		}
@@ -127,12 +125,21 @@ func (m *Monitor) run(ctx context.Context) {
 			highest uint64
 			logs    []types.Log
 			plogs   []*types.Log
+			current uint64
 			err     error
 		)
 		highest, err = m.client.BlockNumber(context.Background())
 		if err != nil {
 			goto TryLater
 		}
+		_, current, err = m.persist.MetaRange(m.meta)
+		if err != nil {
+			goto Failed
+		}
+		if current == 0 {
+			current = 1
+		}
+		m.current.Store(current)
 		if m.current.Load() > highest {
 			goto TryLater
 		}
@@ -144,13 +151,19 @@ func (m *Monitor) run(ctx context.Context) {
 			goto TryLater
 		}
 		m.current.Store(filter.ToBlock.Uint64())
-		logger.Info("monitor queried", m.fields("count", len(logs))...)
+		if len(logs) > 0 {
+			l.Info("monitor queried", m.fields("count", len(logs))...)
+		}
 		plogs = make([]*types.Log, len(logs))
 		for i := range logs {
 			plogs[i] = &logs[i]
 		}
 		if err = m.persist.InsertLogs(m.meta, plogs...); err != nil {
 			err = errors.Wrap(err, "failed to insert logs")
+			goto Failed
+		}
+		if err = m.persist.UpdateMetaRange(m.meta, 0, m.current.Load()); err != nil {
+			err = errors.Wrap(err, "failed to update meta range")
 			goto Failed
 		}
 
@@ -161,7 +174,7 @@ func (m *Monitor) run(ctx context.Context) {
 		time.Sleep(interval)
 		continue
 	Failed:
-		logger.Error("monitor failed", m.fields("error", err)...)
+		l.Error(err, "monitor failed", m.fields()...)
 		return
 	}
 }

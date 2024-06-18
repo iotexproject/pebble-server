@@ -31,15 +31,15 @@ func (e *PebbleFirmware) ContractID() string { return enums.CONTRACT__PEBBLE_DEV
 
 func (e *PebbleFirmware) EventName() string { return "Firmware" }
 
-func (e *PebbleFirmware) Data() any { return e }
-
-func (e *PebbleFirmware) Unmarshal(any) error { return nil }
+func (e *PebbleFirmware) Unmarshal(v any) error {
+	return v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), e)
+}
 
 func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
 	app := &models.App{ID: e.App}
-	if err = FetchByPrimary(ctx, app, e.Imei); err != nil {
+	if err = FetchByPrimary(ctx, app); err != nil {
 		return err
 	}
 
@@ -47,7 +47,7 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 		ID:       e.Imei,
 		Firmware: app.ID + " " + app.Version,
 	}
-	err = UpdateByPrimary(ctx, dev, e.Imei, map[string]any{"firmware": dev.Firmware})
+	err = UpdateByPrimary(ctx, dev, map[string]any{"firmware": dev.Firmware})
 	if err != nil {
 		return err
 	}
@@ -64,5 +64,4 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 			Version:  app.Version,
 		},
 	)
-	return nil
 }

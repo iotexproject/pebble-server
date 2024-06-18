@@ -146,5 +146,7 @@ func TestBlockchain_Init(t *testing.T) {
 		r.NotNil(bc.Monitor("SproutProjectRegistrar", "ProjectRegistered"))
 		r.Nil(bc.Monitor("not-found-contract", "ProjectRegistered"))
 		r.Nil(bc.Monitor("SproutProjectRegistrar", "not-found-event"))
+		monitors := bc.MonitorsInfo()
+		t.Log(monitors)
 	})
 }

@@ -33,9 +33,9 @@ func (e *FirmwareUpdated) ContractID() string { return enums.CONTRACT__PEBBLE_FI
 
 func (e *FirmwareUpdated) EventName() string { return "FirmwareUpdated" }
 
-func (e *FirmwareUpdated) Data() any { return e }
-
-func (e *FirmwareUpdated) Unmarshal(any) error { return nil }
+func (e *FirmwareUpdated) Unmarshal(v any) error {
+	return v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), e)
+}
 
 func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()

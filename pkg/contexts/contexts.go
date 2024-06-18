@@ -3,12 +3,12 @@ package contexts
 import (
 	"context"
 
-	"github.com/go-logr/logr"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/logger"
 )
 
 type (
@@ -17,15 +17,14 @@ type (
 	ctxMqttClient struct{}
 	ctxBlockchain struct{}
 	ctxDatabase   struct{}
-	ctxContracts  struct{}
 )
 
-func LoggerFromContext(ctx context.Context) (*logr.Logger, bool) {
-	v, ok := ctx.Value(ctxLogger{}).(*logr.Logger)
+func LoggerFromContext(ctx context.Context) (*logger.Logger, bool) {
+	v, ok := ctx.Value(ctxLogger{}).(*logger.Logger)
 	return v, ok
 }
 
-func WithLoggerContext(v *logr.Logger) contextx.WithContext {
+func WithLoggerContext(v *logger.Logger) contextx.WithContext {
 	return func(ctx context.Context) context.Context {
 		return context.WithValue(ctx, ctxLogger{}, v)
 	}

@@ -30,9 +30,9 @@ func (e *FirmwareRemoved) ContractID() string { return enums.CONTRACT__PEBBLE_FI
 
 func (e *FirmwareRemoved) EventName() string { return "FirmwareRemoved" }
 
-func (e *FirmwareRemoved) Data() any { return e }
-
-func (e *FirmwareRemoved) Unmarshal(any) error { return nil }
+func (e *FirmwareRemoved) Unmarshal(v any) error {
+	return v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), e)
+}
 
 func (e *FirmwareRemoved) Handle(ctx context.Context) (err error) {
 	return WrapHandleError(DeleteByPrimary(ctx, &models.App{}, e.Name), e)

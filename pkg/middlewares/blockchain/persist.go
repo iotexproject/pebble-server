@@ -17,6 +17,8 @@ import (
 type TxPersistence interface {
 	// MetaRange query persisted meta range
 	MetaRange(MetaID) (uint64, uint64, error)
+	// UpdateMetaRange update persisted meta range
+	UpdateMetaRange(MetaID, uint64, uint64) error
 	// QueryTxByHash query tx log by tx hash and blockchain meta
 	QueryTxByHash(MetaID, common.Hash) (*types.Log, error)
 	// QueryTxByHeightRange query tx logs by blockchain meta and block number range
@@ -64,7 +66,10 @@ func (p *Persist) Init() error {
 func (p *Persist) DB() *pebble.DB { return p.db }
 
 func (p *Persist) Close() error {
-	return p.db.Close()
+	if p.db != nil {
+		return p.db.Close()
+	}
+	return nil
 }
 
 func (p *Persist) BatchSet(kvs ...[2][]byte) (err error) {
@@ -261,6 +266,13 @@ func (p *Persist) MetaRange(meta MetaID) (from uint64, end uint64, err error) {
 		return
 	}
 	return from, end, nil
+}
+
+func (p *Persist) UpdateMetaRange(meta MetaID, from, end uint64) error {
+	if err := p.SetUint64(MetaRangeFromKey(meta), from); err != nil {
+		return err
+	}
+	return p.SetUint64(MetaRangeEndKey(meta), end)
 }
 
 func (p *Persist) QueryTxByHeightRange(meta MetaID, from, to uint64) ([]*types.Log, error) {

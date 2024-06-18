@@ -30,13 +30,13 @@ func (e *AccountUpdated) Topic() string {
 	}, "__")
 }
 
-func (e *AccountUpdated) Data() any { return e }
-
 func (e *AccountUpdated) ContractID() string { return enums.CONTRACT__PEBBLE_ACCOUNT }
 
 func (e *AccountUpdated) EventName() string { return "Updated" }
 
-func (e *AccountUpdated) Unmarshal(any) error { return nil }
+func (e *AccountUpdated) Unmarshal(v any) error {
+	return v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), e)
+}
 
 func (e *AccountUpdated) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()

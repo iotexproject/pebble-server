@@ -31,7 +31,7 @@ func newSubscription(w *watcher, cleanup func()) Subscription {
 	w.stop = stop
 	w.err = err
 
-	logger.Info("watcher started", w.fields()...)
+	l.Info("watcher started", w.fields()...)
 	go w.run()
 	return s
 }
@@ -80,7 +80,7 @@ func (w *watcher) run() {
 	for {
 		select {
 		case <-w.stop:
-			logger.Info("watcher stopped", w.fields("reason", "stopped")...)
+			l.Info("watcher stopped", w.fields()...)
 			return
 		default:
 			var (
@@ -107,7 +107,9 @@ func (w *watcher) run() {
 				goto Failed
 			}
 			w.current = next
-			logger.Info("watcher queried", w.fields("count", len(logs))...)
+			if len(logs) > 0 {
+				l.Info("watcher queried", w.fields("count", len(logs))...)
+			}
 			for _, log := range logs {
 				w.sink <- log
 			}
@@ -123,7 +125,7 @@ func (w *watcher) run() {
 			continue
 		Failed:
 			w.err <- err
-			logger.Error("watcher stopped", w.fields("reason", err)...)
+			l.Error(err, "watcher stopped", w.fields()...)
 			return
 		}
 	}

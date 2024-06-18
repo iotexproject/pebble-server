@@ -35,9 +35,9 @@ func (e *PebbleConfirm) ContractID() string { return enums.CONTRACT__PEBBLE_DEVI
 
 func (e *PebbleConfirm) EventName() string { return "Confirm" }
 
-func (e *PebbleConfirm) Data() any { return e }
-
-func (e *PebbleConfirm) Unmarshal(any) error { return nil }
+func (e *PebbleConfirm) Unmarshal(v any) error {
+	return v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), e)
+}
 
 func (e *PebbleConfirm) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()

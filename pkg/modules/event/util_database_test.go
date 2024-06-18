@@ -44,15 +44,19 @@ func TestDatabaseOperations(t *testing.T) {
 		m.Avatar = "avatar2"
 		v, err := event.UpsertOnConflict(ctx, m, "id")
 		r.NoError(err)
-		m2, ok := v.(*models.Account)
+		_, ok := v.(*models.Account)
 		r.True(ok)
-		r.Equal(*m, *m2)
+		err = event.FetchByPrimary(ctx, m)
+		r.NoError(err)
+		r.Equal(m.Avatar, "avatar")
 
 		m.Avatar = "avatar3"
 		v, err = event.UpsertOnConflict(ctx, m, "id", "avatar")
-		m3, ok := v.(*models.Account)
+		_, ok = v.(*models.Account)
 		r.True(ok)
-		r.Equal(m3.Avatar, "avatar3")
+		err = event.FetchByPrimary(ctx, m)
+		r.NoError(err)
+		r.Equal(m.Avatar, "avatar3")
 	})
 
 	t.Run("DeleteByPrimary", func(t *testing.T) {
@@ -60,19 +64,19 @@ func TestDatabaseOperations(t *testing.T) {
 		err := event.DeleteByPrimary(ctx, m, "111")
 		r.NoError(err)
 
-		err = event.FetchByPrimary(ctx, m, "111")
+		err = event.FetchByPrimary(ctx, m)
 		r.ErrorIs(err, gorm.ErrRecordNotFound)
 	})
 
 	t.Run("UpdateByPrimary", func(t *testing.T) {
 		m := &models.Account{ID: "111"}
-		err := event.UpdateByPrimary(ctx, m, "111", map[string]any{"avatar": "avatar4"})
+		err := event.UpdateByPrimary(ctx, m, map[string]any{"avatar": "avatar4"})
 		r.ErrorIs(err, gorm.ErrRecordNotFound)
 
 		_, err = event.UpsertOnConflict(ctx, m, "id")
 		r.NoError(err)
 
-		err = event.UpdateByPrimary(ctx, m, "111", map[string]any{"avatar": "avatar4"})
+		err = event.UpdateByPrimary(ctx, m, map[string]any{"avatar": "avatar4"})
 		r.NoError(err)
 		r.Equal(m.Name, "")
 		r.Equal(m.Avatar, "avatar4")

@@ -32,21 +32,24 @@ func (e *PebbleRemove) Topic() string {
 
 func (e *PebbleRemove) ContractID() string { return enums.CONTRACT__PEBBLE_DEVICE }
 
-func (e *PebbleRemove) EventName() string { return "Withdraw" }
+func (e *PebbleRemove) EventName() string { return "Remove" }
 
-func (e *PebbleRemove) Data() any { return e }
-
-func (e *PebbleRemove) Unmarshal(any) error { return nil }
+func (e *PebbleRemove) Unmarshal(v any) error {
+	return v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), e)
+}
 
 func (e *PebbleRemove) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
 	dev := &models.Device{ID: e.Imei}
-	if err = FetchByPrimary(ctx, dev, e.Imei); err != nil {
+	if err = FetchByPrimary(ctx, dev); err != nil {
 		return err
 	}
 	if dev.Owner != e.Owner.String() {
-		return errors.Errorf("without device perimission")
+		return errors.Errorf(
+			"without device perimission: %s %s %s",
+			e.Imei, dev.Owner, e.Owner.String(),
+		)
 	}
 	if dev.Status == models.CONFIRM {
 		dev.Status = models.CREATED

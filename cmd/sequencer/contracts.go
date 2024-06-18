@@ -38,7 +38,7 @@ var (
 
 var contracts = []*blockchain.Contract{
 	{
-		ID:      "IOTX_MAINNET_" + enums.CONTRACT__PEBBLE_ACCOUNT,
+		ID:      enums.CONTRACT__PEBBLE_ACCOUNT,
 		Network: blockchain.NETWORK__IOTX_MAINNET,
 		Address: common.HexToAddress("0x189e2ED6EAfBCeAF938d049cf3685828b5493952"),
 		Events: []*blockchain.Event{
@@ -46,7 +46,7 @@ var contracts = []*blockchain.Contract{
 		},
 	},
 	{
-		ID:      "IOTX_MAINNET_" + enums.CONTRACT__PEBBLE_FIRMWARE,
+		ID:      enums.CONTRACT__PEBBLE_FIRMWARE,
 		Network: blockchain.NETWORK__IOTX_MAINNET,
 		Address: common.HexToAddress("0xC5F406c42C96e68756311Dad49dE99B0f4A1A722"),
 		Events: []*blockchain.Event{
@@ -55,7 +55,7 @@ var contracts = []*blockchain.Contract{
 		},
 	},
 	{
-		ID:      "IOTX_MAINNET_" + enums.CONTRACT__PEBBLE_BANK,
+		ID:      enums.CONTRACT__PEBBLE_BANK,
 		Network: blockchain.NETWORK__IOTX_MAINNET,
 		Address: common.HexToAddress("0xb86f97D494EEf8c6d618ee2049419eE0Ce843F28"),
 		Events: []*blockchain.Event{
@@ -65,7 +65,7 @@ var contracts = []*blockchain.Contract{
 		},
 	},
 	{
-		ID:      "IOTX_MAINNET_" + enums.CONTRACT__PEBBLE_DEVICE,
+		ID:      enums.CONTRACT__PEBBLE_DEVICE,
 		Network: blockchain.NETWORK__IOTX_MAINNET,
 		Address: common.HexToAddress("0xC9D7D9f25b98119DF5b2303ac0Df6b15C982BbF5"),
 		Events: []*blockchain.Event{
@@ -77,7 +77,7 @@ var contracts = []*blockchain.Contract{
 		},
 	},
 	{
-		ID:      "IOTX_TESTNET_" + enums.CONTRACT__PEBBLE_ACCOUNT,
+		ID:      enums.CONTRACT__PEBBLE_ACCOUNT,
 		Network: blockchain.NETWORK__IOTX_TESTNET,
 		Address: common.HexToAddress("0xBC458A041a50BF5abb900C78b7355d54E92FCFBa"),
 		Events: []*blockchain.Event{
@@ -85,7 +85,7 @@ var contracts = []*blockchain.Contract{
 		},
 	},
 	{
-		ID:      "IOTX_TESTNET_" + enums.CONTRACT__PEBBLE_FIRMWARE,
+		ID:      enums.CONTRACT__PEBBLE_FIRMWARE,
 		Network: blockchain.NETWORK__IOTX_TESTNET,
 		Address: common.HexToAddress("0x93ea43b4548058f4c02925F0725422E6DC81c92d"),
 		Events: []*blockchain.Event{
@@ -94,7 +94,7 @@ var contracts = []*blockchain.Contract{
 		},
 	},
 	{
-		ID:      "IOTX_TESTNET_" + enums.CONTRACT__PEBBLE_BANK,
+		ID:      enums.CONTRACT__PEBBLE_BANK,
 		Network: blockchain.NETWORK__IOTX_TESTNET,
 		Address: common.HexToAddress("0xd313b3131e238C635f2fE4a84EaDaD71b3ed25fa"),
 		Events: []*blockchain.Event{
@@ -104,7 +104,7 @@ var contracts = []*blockchain.Contract{
 		},
 	},
 	{
-		ID:      "IOTX_TESTNET_" + enums.CONTRACT__PEBBLE_DEVICE,
+		ID:      enums.CONTRACT__PEBBLE_DEVICE,
 		Network: blockchain.NETWORK__IOTX_TESTNET,
 		Address: common.HexToAddress("0x1AA325E5144f763a520867c56FC77cC1411430d0"),
 		Events: []*blockchain.Event{

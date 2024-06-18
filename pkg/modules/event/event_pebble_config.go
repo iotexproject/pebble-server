@@ -34,21 +34,21 @@ func (e *PebbleConfig) ContractID() string { return enums.CONTRACT__PEBBLE_DEVIC
 
 func (e *PebbleConfig) EventName() string { return "Config" }
 
-func (e *PebbleConfig) Data() any { return e }
-
-func (e *PebbleConfig) Unmarshal(any) error { return nil }
+func (e *PebbleConfig) Unmarshal(v any) error {
+	return v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), e)
+}
 
 func (e *PebbleConfig) Handle(ctx context.Context) (err error) {
-	defer func() { WrapHandleError(err, e) }()
+	defer func() { err = WrapHandleError(err, e) }()
 
 	md := &models.Device{ID: e.Imei}
 	fs := map[string]any{"config": e.Config}
-	if err = UpdateByPrimary(ctx, md, e.Imei, fs); err != nil {
+	if err = UpdateByPrimary(ctx, md, fs); err != nil {
 		return err
 	}
 
 	app := &models.AppV2{ID: e.Config}
-	if err = FetchByPrimary(ctx, app, e.Config); err != nil {
+	if err = FetchByPrimary(ctx, app); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil
 		}

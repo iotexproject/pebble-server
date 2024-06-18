@@ -38,9 +38,9 @@ func (e *BankWithdraw) ContractID() string { return enums.CONTRACT__PEBBLE_BANK 
 
 func (e *BankWithdraw) EventName() string { return "Withdraw" }
 
-func (e *BankWithdraw) Data() any { return e }
-
-func (e *BankWithdraw) Unmarshal(any) error { return nil }
+func (e *BankWithdraw) Unmarshal(v any) error {
+	return v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), e)
+}
 
 func (e *BankWithdraw) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()

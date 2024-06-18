@@ -28,7 +28,7 @@ func (e *DeviceConfirm) Source() SourceType { return SOURCE_TYPE__MQTT }
 func (e *DeviceConfirm) Topic() string { return "device/+/confirm" }
 
 func (e *DeviceConfirm) UnmarshalTopic(topic []byte) error {
-	return (&TopicUnmarshaller{e, topic, "device", "confirm"}).Unmarshal()
+	return (&TopicParser{e, topic, "device", "confirm"}).Unmarshal()
 }
 
 func (e *DeviceConfirm) Unmarshal(v any) (err error) {
@@ -66,8 +66,8 @@ func (e *DeviceConfirm) Unmarshal(v any) (err error) {
 func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	dev := &models.Device{}
-	err = FetchByPrimary(ctx, dev, e.imei)
+	dev := &models.Device{ID: e.imei}
+	err = FetchByPrimary(ctx, dev)
 	if err != nil {
 		return err
 	}

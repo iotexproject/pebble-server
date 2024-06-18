@@ -2,7 +2,7 @@ package event
 
 import (
 	"context"
-	"reflect"
+	"encoding/binary"
 	"sort"
 	"strings"
 
@@ -39,8 +39,6 @@ type EventHasBlockchainMeta interface {
 	ContractID() string
 	// EventName returns event name event handling
 	EventName() string
-	// Data returns the structured data can be parsed from tx log
-	Data() any
 }
 
 func SubID(e EventHasBlockchainMeta) string {
@@ -49,7 +47,10 @@ func SubID(e EventHasBlockchainMeta) string {
 	}, "__")
 }
 
-var gEventFactory map[string]func() Event
+var (
+	gEventFactory map[string]func() Event
+	gByteOrder    = binary.BigEndian
+)
 
 func registry(topic string, f func() Event) {
 	if gEventFactory == nil {
@@ -86,22 +87,28 @@ func Events() []Event {
 	return events
 }
 
-func Handle(ctx context.Context, subtopic, topic string, data any) error {
-	factory := gEventFactory[subtopic]
-	if factory == nil {
-		return errors.Errorf("factory not found by topic: %s", subtopic)
-	}
-	event := factory()
+func Handle(ctx context.Context, subtopic, topic string, data any) (err error) {
+	v := gEventFactory[subtopic]()
+	l := must.BeTrueV(contexts.LoggerFromContext(ctx))
 
-	if parser, ok := event.(EventHasTopicData); ok {
-		if err := parser.UnmarshalTopic([]byte(topic)); err != nil {
+	defer func() {
+		ll := l.WithValues("source", v.Source().String(), "topic", v.Topic(), "data", v)
+		if err != nil {
+			ll.Error(err, "failed to handle event")
+		} else {
+			ll.Info("event handled")
+		}
+	}()
+
+	if parser, ok := v.(EventHasTopicData); ok {
+		if err = parser.UnmarshalTopic([]byte(topic)); err != nil {
 			return err
 		}
 	}
-	if err := event.Unmarshal(data); err != nil {
+	if err = v.Unmarshal(data); err != nil {
 		return err
 	}
-	return event.Handle(ctx)
+	return v.Handle(ctx)
 }
 
 func InitRunner(ctx context.Context) func() {
@@ -117,48 +124,46 @@ func InitRunner(ctx context.Context) func() {
 
 func Init(ctx context.Context) error {
 	var (
-		logger = must.BeTrueV(contexts.LoggerFromContext(ctx))
-		broker = must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
+		l   = must.BeTrueV(contexts.LoggerFromContext(ctx))
+		err error
 	)
-
 	for _, v := range Events() {
 		switch v.Source() {
 		case SOURCE_TYPE__MQTT:
-			client, err := broker.NewClient(v.Topic(), v.Topic())
-			if err != nil {
-				return errors.Wrapf(err, "failed to new mqtt client for topic %s", v.Topic())
-			}
-			err = client.Subscribe(func(_ mqtt.Client, message mqtt.Message) {
-				err := Handle(ctx, v.Topic(), message.Topic(), message.Payload())
-				if err != nil {
-					logger.WithValues(
-						"client", client.ID(),
-						"topic", v.Topic(),
-					).Error(err, "failed to handle mqtt message")
-				}
-			})
-			if err != nil {
-				return errors.Wrapf(err, "failed to subscribe topic: %s", v.Topic())
-			}
-			return nil
+			err = StartMqttEventConsuming(ctx, v)
 		case SOURCE_TYPE__BLOCKCHAIN:
-			m, ok := v.(EventHasBlockchainMeta)
-			must.BeTrueWrap(ok, "expect blockchain source event impl `EventHasBlockchainMeta`")
-
-			if err := StartChainEventConsuming(ctx, m); err != nil {
-				return errors.Wrapf(err, "failed to start tx consuming")
-			}
+			err = StartChainEventConsuming(ctx, v)
 		default:
-			return errors.Errorf("unexpected event source type: %d", v)
+			panic(errors.Errorf("unexpected event source type: %d", v))
 		}
+		if err != nil {
+			return errors.Wrapf(err, "failed to start event consuming [topic:%s]", v.Topic())
+		}
+		l.Info("event monitor started", "source", v.Source().String(), "topic", v.Topic())
 	}
 	return nil
 }
 
-func StartChainEventConsuming(ctx context.Context, v EventHasBlockchainMeta) error {
+func StartMqttEventConsuming(ctx context.Context, v Event) error {
+	mq := must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
+
+	c, err := mq.NewClient(v.Topic(), v.Topic())
+	if err != nil {
+		return errors.Wrapf(err, "failed to new mqtt client")
+	}
+	err = c.Subscribe(func(_ mqtt.Client, message mqtt.Message) {
+		_ = Handle(ctx, v.Topic(), message.Topic(), message.Payload())
+	})
+	return errors.Wrap(err, "failed to start mqtt subscribing")
+}
+
+func StartChainEventConsuming(ctx context.Context, e Event) error {
+	v, ok := e.(EventHasBlockchainMeta)
+	must.BeTrueWrap(ok, "expect blockchain source event impl `EventHasBlockchainMeta`")
+
 	var (
-		bc     = must.BeTrueV(contexts.BlockchainFromContext(ctx))
-		logger = must.BeTrueV(contexts.LoggerFromContext(ctx))
+		bc = must.BeTrueV(contexts.BlockchainFromContext(ctx))
+		l  = must.BeTrueV(contexts.LoggerFromContext(ctx))
 	)
 
 	contract := bc.ContractByID(v.ContractID())
@@ -183,26 +188,10 @@ func StartChainEventConsuming(ctx context.Context, v EventHasBlockchainMeta) err
 		for {
 			select {
 			case err = <-sub.Err():
-				logger.Error(err, "subscribe failed", "subtopic", SubID(v))
+				l.Error(err, "subscribe failed", "subtopic", SubID(v))
 				return
-			case l := <-sink:
-				data := v.Data()
-				if err := contract.ParseTxLog(v.EventName(), l, data); err != nil {
-					logger.Error(
-						err, "failed to parse tx log: [tx: %s] [event: %s] [data: %s]",
-						l.TxHash, v.EventName(), reflect.TypeOf(data),
-					)
-					continue
-				}
-				if setter, ok := v.(CanSetTxHash); ok {
-					setter.SetTxHash(l)
-				}
-				if err := Handle(ctx, v.Topic(), "", data); err != nil {
-					logger.Error(
-						err, "failed to handle event data: [tx: %s] [event: %s] [data: %s]",
-						l.TxHash, v.EventName(), reflect.TypeOf(data),
-					)
-				}
+			case log := <-sink:
+				_ = Handle(ctx, v.Topic(), v.Topic(), &TxEventParser{contract, log})
 			}
 		}
 	}()

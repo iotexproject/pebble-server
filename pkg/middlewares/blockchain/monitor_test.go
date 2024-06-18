@@ -39,15 +39,15 @@ func TestMonitor_Init(t *testing.T) {
 
 	m := (&Monitor{Meta: meta}).
 		WithPersistence(p).
-		WithEthClient(c).
-		WithStartBlock(25950000)
+		WithEthClient(c)
+	// force monitor start at 25950000
+	r.NoError(p.SetUint64(MetaRangeEndKey(m.MetaID()), 25950000))
 
 	r.Equal(m.MetaID(), meta.MetaID())
 	r.Equal(m.Network(), meta.Network)
 	r.Equal(m.Endpoint(), c.ChainEndpoint())
 	r.Equal(m.Topic().String(), "0xa9ee0c223bc138bec6ebb21e09d00d5423fc3bbc210bdb6aef9d190b0641aecb")
 	r.Equal(m.ContractAddress().String(), "0xCBb7a80983Fd3405972F700101A82DB6304C6547")
-	r.Equal(m.CurrentBlock(), uint64(25950000))
 
 	t.Run("Success", func(t *testing.T) {
 		r.NoError(m.Init())
@@ -89,8 +89,10 @@ func TestMonitor_Watch(t *testing.T) {
 
 	m := (&Monitor{Meta: meta}).
 		WithPersistence(p).
-		WithEthClient(c).
-		WithStartBlock(25950000)
+		WithEthClient(c)
+	// force monitor start at 25950000
+	r.NoError(p.SetUint64(MetaRangeEndKey(m.MetaID()), 25950000))
+
 	r.NoError(m.Init())
 
 	t.Run("InvalidSubID", func(t *testing.T) {
@@ -188,7 +190,12 @@ func ExampleMonitor() {
 			Contract: common.HexToAddress("0xCBb7a80983Fd3405972F700101A82DB6304C6547"),
 			Topic:    common.HexToHash("0xa9ee0c223bc138bec6ebb21e09d00d5423fc3bbc210bdb6aef9d190b0641aecb"),
 		},
-	}).WithPersistence(p).WithEthClient(c).WithStartBlock(25952996)
+	}).WithPersistence(p).WithEthClient(c)
+	// force monitor start at 25952995(on 25952996 block height contains tx monitor cares)
+	if err := p.SetUint64(MetaRangeEndKey(m.MetaID()), 25952995); err != nil {
+		fmt.Println("force set monitor start", err)
+		return
+	}
 
 	if err := m.Init(); err != nil {
 		fmt.Println("monitor init", err)

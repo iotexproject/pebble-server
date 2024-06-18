@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 
-	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
 	"github.com/xoctopus/confx/confapp"
 	"github.com/xoctopus/confx/confmws/confmqtt"
@@ -16,6 +16,7 @@ import (
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/logger"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
 )
@@ -32,22 +33,21 @@ var (
 		MqttBroker *confmqtt.Broker
 		Database   *database.Postgres
 		Blockchain *blockchain.Blockchain
-		Logger     logr.Logger
+		Logger     *logger.Logger
+		ServerPort uint16
 	}{
-		Logger: logr.FromSlogHandler(&slog.JSONHandler{}),
-		Blockchain: &blockchain.Blockchain{
-			Clients:     []*blockchain.EthClient{},
-			Contracts:   contracts,
-			PersistPath: "",
-		},
-		Database: &database.Postgres{},
+		Logger:     &logger.Logger{Level: slog.LevelDebug},
+		Blockchain: &blockchain.Blockchain{Contracts: contracts},
+		MqttBroker: &confmqtt.Broker{},
+		Database:   &database.Postgres{},
+		ServerPort: 6666,
 	}
 	ctx context.Context
 )
 
 func init() {
 	ctx = contextx.WithContextCompose(
-		contexts.WithLoggerContext(&config.Logger),
+		contexts.WithLoggerContext(config.Logger),
 		contexts.WithBlockchainContext(config.Blockchain),
 		contexts.WithDatabaseContext(config.Database),
 		contexts.WithMqttBrokerContext(config.MqttBroker),
@@ -78,7 +78,11 @@ func init() {
 }
 
 func Main() error {
-	event.InitRunner(ctx)
+	if err := config.Blockchain.RunMonitors(); err != nil {
+		config.Logger.Error(err, "failed to start tx monitor")
+	}
+	event.InitRunner(ctx)()
+	go RunDebugServer(ctx, fmt.Sprintf(":%d", config.ServerPort))
 
 	sig := make(chan os.Signal)
 	signal.Notify(sig, os.Interrupt)

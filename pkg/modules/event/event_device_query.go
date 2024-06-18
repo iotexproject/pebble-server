@@ -25,14 +25,14 @@ func (e *DeviceQuery) Topic() string { return "device/+/query" }
 func (e *DeviceQuery) Unmarshal(any) error { return nil /* no payload */ }
 
 func (e *DeviceQuery) UnmarshalTopic(topic []byte) error {
-	return (&TopicUnmarshaller{e, topic, "device", "query"}).Unmarshal()
+	return (&TopicParser{e, topic, "device", "query"}).Unmarshal()
 }
 
 func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	dev := &models.Device{}
-	err = FetchByPrimary(ctx, dev, e.imei)
+	dev := &models.Device{ID: e.imei}
+	err = FetchByPrimary(ctx, dev)
 	if err != nil {
 		return err
 	}
@@ -47,8 +47,8 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 		version  string
 	)
 	if parts := strings.Split(dev.RealFirmware, " "); len(parts) == 2 {
-		app := &models.App{}
-		err = FetchByPrimary(ctx, app, parts[0])
+		app := &models.App{ID: parts[0]}
+		err = FetchByPrimary(ctx, app)
 		if err != nil {
 			return err
 		}

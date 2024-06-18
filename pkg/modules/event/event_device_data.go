@@ -84,14 +84,14 @@ func (e *DeviceData) Unmarshal(v any) (err error) {
 }
 
 func (e *DeviceData) UnmarshalTopic(topic []byte) error {
-	return (&TopicUnmarshaller{e, topic, "device", "data"}).Unmarshal()
+	return (&TopicParser{e, topic, "device", "data"}).Unmarshal()
 }
 
 func (e *DeviceData) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	dev := &models.Device{}
-	if err = FetchByPrimary(ctx, dev, e.imei); err != nil {
+	dev := &models.Device{ID: e.imei}
+	if err = FetchByPrimary(ctx, dev); err != nil {
 		return err
 	}
 
@@ -135,7 +135,7 @@ func (e *DeviceData) handleState(ctx context.Context, dev *models.Device, pkg *p
 	dev.State = int32(pkg.GetState())
 	dev.OperationTimes = models.NewOperationTimes()
 
-	return UpdateByPrimary(ctx, dev, dev.ID, map[string]any{
+	return UpdateByPrimary(ctx, dev, map[string]any{
 		"state":      dev.State,
 		"updated_at": dev.UpdatedAt,
 	})

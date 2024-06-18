@@ -36,9 +36,9 @@ func (e *PebbleProposal) ContractID() string { return enums.CONTRACT__PEBBLE_DEV
 
 func (e *PebbleProposal) EventName() string { return "Proposal" }
 
-func (e *PebbleProposal) Data() any { return e }
-
-func (e *PebbleProposal) Unmarshal(any) error { return nil }
+func (e *PebbleProposal) Unmarshal(v any) error {
+	return v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), e)
+}
 
 func (e *PebbleProposal) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
