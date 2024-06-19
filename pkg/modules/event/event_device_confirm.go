@@ -6,12 +6,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
 	"google.golang.org/protobuf/proto"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
@@ -76,6 +78,7 @@ type message struct {
 	Owner       string `json:"owner"`
 	Timestamp   uint32 `json:"timestamp"`
 	Signature   string `json:"signature"`
+	GasLimit    string `json:"gasLimit"`
 	DataChannel int32  `json:"dataChannel"`
 }
 
@@ -98,7 +101,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 	}
 
 	id := uuid.NewString()
-	msg := models.Message{
+	msg := &models.Message{
 		MessageID:      dev.Address + fmt.Sprintf("-%d", e.pkg.GetTimestamp()),
 		ClientID:       dev.Address,
 		ProjectID:      must.BeTrueV(contexts.ProjectIDFromContext(ctx)),
@@ -108,6 +111,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 			Owner:       dev.Owner,
 			Timestamp:   e.pkg.GetTimestamp(),
 			Signature:   hex.EncodeToString(e.pkg.GetSignature()),
+			GasLimit:    big.NewInt(200000).String(),
 			DataChannel: dev.DataChannel,
 		}})),
 		InternalTaskID: id,
@@ -115,7 +119,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 	task := &models.Task{
 		ProjectID:      must.BeTrueV(contexts.ProjectIDFromContext(ctx)),
 		InternalTaskID: id,
-		MessageIDs:     []byte(`[` + id + `]`),
+		MessageIDs:     datatypes.JSON([]byte(`[` + id + `]`)),
 		Signature:      "",
 	}
 

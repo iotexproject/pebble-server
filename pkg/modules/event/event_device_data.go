@@ -167,7 +167,7 @@ func (e *DeviceData) handleData(ctx context.Context, dev *models.Device, pkg *pe
 		ID:             dev.ID + "-" + fmt.Sprintf("%d", e.bin.GetTimestamp()),
 		Imei:           dev.ID,
 		Timestamp:      int64(e.bin.GetTimestamp()),
-		Signature:      hex.EncodeToString(e.bin.GetSignature()),
+		Signature:      hex.EncodeToString(e.sig),
 		Operator:       "",
 		Snr:            strconv.FormatFloat(snr, 'f', 1, 64),
 		Vbat:           strconv.FormatFloat(vbat, 'f', 1, 64),

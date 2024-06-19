@@ -1,6 +1,7 @@
 package event_test
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -38,4 +39,16 @@ func TestDeviceConfirmUnmarshal(t *testing.T) {
 			}
 		})
 	})
+
+	b64 := "ChSL8XCgJ0rpBriLIjTslUibYN6lfhCyvMKzBhpA01gdM1K0JG72+ZgLvA09MUNVEIoMKiaDuK/pbmUt3P8VW70XAyiVOy4Fstz6GotAYiilAPaGuSYg8HA+IBZOSyD3Pw=="
+	raw, err := base64.StdEncoding.DecodeString(b64)
+	r.NoError(err)
+	ctx := testctx()
+	v := &event.DeviceConfirm{}
+
+	r.NoError(v.UnmarshalTopic([]byte("device/351358815439952/confirm")))
+
+	r.NoError(v.Unmarshal(raw))
+
+	r.NoError(v.Handle(ctx))
 }

@@ -5,7 +5,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/xoctopus/confx/confmws/confmqtt"
+	"github.com/xoctopus/datatypex"
 	"github.com/xoctopus/x/contextx"
+	"github.com/xoctopus/x/misc/retry"
 	"gorm.io/gorm"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
@@ -13,6 +16,38 @@ import (
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
 )
+
+func testctx() context.Context {
+	d := &database.Postgres{}
+	d.SetDefault()
+	d.Endpoint.Username = "test"
+	d.Endpoint.Password = "passwd"
+	if err := d.Init(); err != nil {
+		return nil
+	}
+
+	mq := &confmqtt.Broker{
+		Server:        datatypex.Endpoint{},
+		Retry:         retry.Retry{},
+		Timeout:       0,
+		Keepalive:     0,
+		RetainPublish: false,
+		QoS:           0,
+		Cert:          nil,
+	}
+	mq.SetDefault()
+	if err := mq.Init(); err != nil {
+		return nil
+	}
+
+	return contextx.WithContextCompose(
+		contexts.WithDatabaseContext(d),
+		contexts.WithProjectIDContext(1),
+		contexts.WithProjectVersionContext("v0.0.1"),
+		contexts.WithMqttBrokerContext(mq),
+	)(context.Background())
+
+}
 
 func TestDatabaseOperations(t *testing.T) {
 	t.Skip("need pg dependencies")

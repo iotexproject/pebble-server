@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/xoctopus/x/misc/must"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
 )
@@ -16,15 +15,6 @@ func TestDeviceDataUnmarshal(t *testing.T) {
 	v, ok := event.NewEvent("device/+/data").(*event.DeviceData)
 	r.NotNil(v)
 	r.True(ok)
-
-	b64s := []string{
-		"CAASRQjIARCzAxiA0KzzDiCA0KzzDiiw08ABMIQtOLmDBkCHHEgAUMIWWgMIDQxiBjPOAcKDAWoQYWEyMzNjODRiY2MwNzk0MBiemcCzBiJATJa13Bb09C6pfOEXwHBibqVXtY9Nm0MBiqYhBZsS+3cLqPEec4jPxUBDsfK6DehS2vf050PValjAyPVxnqoy8A==",
-	}
-
-	for _, b64 := range b64s {
-		raw := must.NoErrorV(base64.StdEncoding.DecodeString(b64))
-		r.NoError(v.Unmarshal(raw))
-	}
 
 	t.Run("UnmarshalTopic", func(t *testing.T) {
 		t.Run("Invalid", func(t *testing.T) {
@@ -52,4 +42,17 @@ func TestDeviceDataUnmarshal(t *testing.T) {
 			}
 		})
 	})
+
+	b64 := "CAASRAjMCBDkAhiAwIncAyC/kfCeByj0l6ABMLogOID+BUD+JUgAUJ0QWgMsDwZiBTXmf+ICahA1ZGEwOTk3NDE0OTIyYThiGLbUyLMGIkC4zqnDST/KDHLihv8Nbks5gu6/XZ8kB/ytvF0YUA0bQoL7QbuPbmNeROcBKNj4ePkKihnjI373E8NaybO0wmte"
+	raw, err := base64.StdEncoding.DecodeString(b64)
+	r.NoError(err)
+
+	topic := []byte("device/350916067070535/data")
+
+	r.NoError(v.UnmarshalTopic(topic))
+
+	r.NoError(v.Unmarshal(raw))
+
+	r.NoError(v.Handle(testctx()))
+
 }
