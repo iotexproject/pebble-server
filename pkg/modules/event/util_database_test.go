@@ -40,13 +40,62 @@ func testctx() context.Context {
 		return nil
 	}
 
-	return contextx.WithContextCompose(
+	ctx := contextx.WithContextCompose(
 		contexts.WithDatabaseContext(d),
 		contexts.WithProjectIDContext(1),
 		contexts.WithProjectVersionContext("v0.0.1"),
 		contexts.WithMqttBrokerContext(mq),
 	)(context.Background())
 
+	if _, err := event.UpsertOnConflict(ctx, &models.Device{
+		ID:                     "350916067070535",
+		Name:                   "Kavoit 2",
+		Owner:                  "0x4F3794b74F9d59C5773a7272295A6A3F0cCc972a",
+		Address:                "0x7c6D376B125b43ea5ba5dd0F84E00a4f0c3ad63F",
+		Avatar:                 "https://storageapi.fleek.co/uu-z-team-bucket/b7a5acf3-c513-4279-944b-72f4dbf17e8c",
+		Status:                 2,
+		Proposer:               "",
+		Firmware:               "Riverrock 1.0.14",
+		Config:                 "",
+		TotalGas:               0,
+		BulkUpload:             0,
+		DataChannel:            8183,
+		UploadPeriod:           300,
+		BulkUploadSamplingCnt:  0,
+		BulkUploadSamplingFreq: 0,
+		Beep:                   100,
+		RealFirmware:           "Riverrock 1.0.14",
+		State:                  0,
+		Type:                   0,
+		Configurable:           false,
+	}, "id"); err != nil {
+		return nil
+	}
+	if _, err := event.UpsertOnConflict(ctx, &models.Device{
+		ID:                     "351358815439952",
+		Name:                   "Pebble1",
+		Owner:                  "0x8bf170A0274AE906B88b2234eC95489b60dea57E",
+		Address:                "0x0c9B334A4c8CF6070F057e97FB7612084565842E",
+		Avatar:                 "https://storageapi.fleek.co/uu-z-team-bucket/b7a5acf3-c513-4279-944b-72f4dbf17e8c",
+		Status:                 2,
+		Proposer:               "",
+		Firmware:               "",
+		Config:                 "",
+		TotalGas:               0,
+		BulkUpload:             0,
+		DataChannel:            8183,
+		UploadPeriod:           300,
+		BulkUploadSamplingCnt:  0,
+		BulkUploadSamplingFreq: 0,
+		Beep:                   1000,
+		RealFirmware:           "Riverrock 1.0.12",
+		State:                  0,
+		Type:                   0,
+		Configurable:           false,
+	}, "id"); err != nil {
+		return nil
+	}
+	return ctx
 }
 
 func TestDatabaseOperations(t *testing.T) {
