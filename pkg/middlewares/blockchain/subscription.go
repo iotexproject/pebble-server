@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"context"
 	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
@@ -20,7 +21,7 @@ type WatchOptions struct {
 	Start *uint64 `json:"start"`
 }
 
-func newSubscription(w *watcher, cleanup func()) Subscription {
+func newSubscription(ctx context.Context, w *watcher, cleanup func()) Subscription {
 	err := make(chan error, 1)
 	stop := make(chan struct{}, 1)
 	s := &subscriber{
@@ -32,7 +33,7 @@ func newSubscription(w *watcher, cleanup func()) Subscription {
 	w.err = err
 
 	l.Info("watcher started", w.fields()...)
-	go w.run()
+	go w.run(ctx)
 	return s
 }
 
@@ -75,12 +76,15 @@ func (w *watcher) fields(others ...any) []any {
 	)
 }
 
-func (w *watcher) run() {
+func (w *watcher) run(ctx context.Context) {
 	step := uint64(100000)
 	for {
 		select {
+		case <-ctx.Done():
+			l.Info("watcher stopped subscriber removed", w.fields()...)
+			return
 		case <-w.stop:
-			l.Info("watcher stopped", w.fields()...)
+			l.Info("watcher stopped by subscriber", w.fields()...)
 			return
 		default:
 			var (

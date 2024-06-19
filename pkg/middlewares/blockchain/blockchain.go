@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -19,6 +20,7 @@ type Blockchain struct {
 	clients   map[Network]*EthClient
 	contracts map[string]*Contract
 	persist   TxPersistence
+	once      sync.Once
 }
 
 func (bc *Blockchain) SetDefault() {
@@ -106,7 +108,14 @@ func (bc *Blockchain) Init() error {
 }
 
 func (bc *Blockchain) Close() {
-	bc.persist.Close()
+	bc.once.Do(func() {
+		bc.monitors.Range(func(_, v any) bool {
+			v.(*Monitor).Stop()
+			return true
+		})
+		time.Sleep(500 * time.Millisecond)
+		bc.persist.Close()
+	})
 }
 
 func (bc *Blockchain) ClientByNetwork() *EthClient {

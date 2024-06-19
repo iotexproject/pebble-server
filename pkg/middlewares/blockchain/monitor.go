@@ -30,6 +30,7 @@ type Monitor struct {
 	cancel  context.CancelFunc
 	subs    sync.Map
 	name    string
+	once    sync.Once
 }
 
 func (m *Monitor) Init() error {
@@ -102,7 +103,14 @@ func (m *Monitor) Topic() common.Hash {
 }
 
 func (m *Monitor) Stop() {
-	m.cancel()
+	m.once.Do(func() {
+		m.cancel()
+		m.subs.Range(func(_, v any) bool {
+			v.(context.CancelFunc)()
+			return true
+		})
+		time.Sleep(500 * time.Millisecond)
+	})
 }
 
 func (m *Monitor) run(ctx context.Context) {
@@ -196,7 +204,9 @@ func (m *Monitor) Watch(opts WatchOptions, sink chan<- *types.Log) (Subscription
 		return nil, errors.Errorf("invalid sink channel, expect not nil")
 	}
 
-	if _, loaded := m.subs.LoadOrStore(opts.SubID, struct{}{}); loaded {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	if _, loaded := m.subs.LoadOrStore(opts.SubID, cancel); loaded {
 		return nil, errors.Errorf(
 			"monitor is watching by subscriber `%s` [network: %s] [contract: %s] [topic:%s]",
 			opts.SubID, m.Network(), m.ContractAddress(), m.Topic(),
@@ -244,5 +254,5 @@ func (m *Monitor) Watch(opts WatchOptions, sink chan<- *types.Log) (Subscription
 		sink:    sink,
 		start:   start,
 	}
-	return newSubscription(w, func() { m.subs.Delete(opts.SubID) }), nil
+	return newSubscription(ctx, w, func() { m.subs.Delete(opts.SubID) }), nil
 }

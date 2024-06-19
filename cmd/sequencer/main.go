@@ -92,13 +92,14 @@ func Main() error {
 		config.Logger.Error(err, "failed to start tx monitor")
 	}
 	event.InitRunner(ctx)()
+	defer config.Blockchain.Close()
+
 	go RunDebugServer(ctx, fmt.Sprintf(":%d", config.ServerPort))
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
 	_ = <-sig
 
-	config.Blockchain.Close()
 	return nil
 }
 
