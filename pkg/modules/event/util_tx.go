@@ -29,6 +29,7 @@ func (h TxHash) String() string {
 
 type TxEventUnmarshaler interface {
 	UnmarshalTx(event string, data any) error
+	BlockNumber() uint64
 }
 
 type TxEventParser struct {
@@ -44,4 +45,8 @@ func (t *TxEventParser) UnmarshalTx(name string, v any) error {
 		setter.SetTxHash(t.log.TxHash)
 	}
 	return t.contract.ParseTxLog(name, t.log, v)
+}
+
+func (t *TxEventParser) BlockNumber() uint64 {
+	return t.log.BlockNumber
 }

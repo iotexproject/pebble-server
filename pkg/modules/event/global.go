@@ -93,6 +93,9 @@ func Handle(ctx context.Context, subtopic, topic string, data any) (err error) {
 
 	defer func() {
 		ll := l.WithValues("source", v.Source().String(), "topic", v.Topic(), "data", v)
+		if t, ok := data.(TxEventUnmarshaler); ok {
+			ll = ll.WithValues("block", t.BlockNumber())
+		}
 		if err != nil {
 			ll.Error(err, "failed to handle event")
 		} else {
