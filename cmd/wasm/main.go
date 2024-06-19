@@ -28,13 +28,10 @@ func onStart(rid uint32) int32 {
 	log.Log("wasm get datas from json: " + gjson.Get(string(res), "datas").String())
 	datas := gjson.Get(string(res), "datas").Array()
 	imei := gjson.Get(datas[0].String(), "imei").String()
-	// owner := []byte(datas[0].Get("owner").String())
 	owner := []byte(gjson.Get(datas[0].String(), "owner").String())
-	// timestamp := uint32(datas[0].Get("timestamp").Uint())
 	timestamp := uint32(gjson.Get(datas[0].String(), "timestamp").Uint())
-	// signature := []byte(datas[0].Get("signature").String())
 	signature := []byte(gjson.Get(datas[0].String(), "signature").String())
-	// dataChannel := uint32(datas[0].Get("dataChannel").Uint())
+	gasLimit := big.NewInt(gjson.Get(datas[0].String(), "gasLimit").Int())
 	dataChannel := uint32(gjson.Get(datas[0].String(), "dataChannel").Uint())
 
 	/*https://github.com/iotexproject/pebble-contracts/blob/1a1c91a287317d8c068edb571149aedb10c0b754/contracts/PebbleImpl.sol
@@ -52,7 +49,7 @@ func onStart(rid uint32) int32 {
 		log.Log(fmt.Sprintf("abi.NewMethod error: %s", err.Error()))
 		return -1
 	}
-	data, err := method.Pack(imei, address.BytesToAddress(owner), timestamp, signature, big.NewInt(200000), dataChannel)
+	data, err := method.Pack(imei, address.BytesToAddress(owner), timestamp, signature, gasLimit, dataChannel)
 	if err != nil {
 		log.Log(fmt.Sprintf("pack error: %s", err.Error()))
 		return -1
