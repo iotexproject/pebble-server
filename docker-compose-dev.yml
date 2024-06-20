@@ -45,16 +45,9 @@ services:
     environment:
       PEBBLE_SEQUENCER__Blockchain_PersistPath: /data/pebbletx
       PEBBLE_SEQUENCER__Database_Endpoint: postgres://test:passwd@postgres:5432/pebble?sslmode=disable
-      PEBBLE_SEQUENCER__MqttBroker_Cert_CA: ""
-      PEBBLE_SEQUENCER__MqttBroker_Cert_Crt: ""
-      PEBBLE_SEQUENCER__MqttBroker_Cert_Key: ""
-      PEBBLE_SEQUENCER__MqttBroker_Keepalive: "10800000000000"
-      PEBBLE_SEQUENCER__MqttBroker_QoS: ONCE
-      PEBBLE_SEQUENCER__MqttBroker_RetainPublish: "false"
-      PEBBLE_SEQUENCER__MqttBroker_Retry_Interval: "3000000000"
-      PEBBLE_SEQUENCER__MqttBroker_Retry_Repeats: "3"
       PEBBLE_SEQUENCER__MqttBroker_Server: tcp://mqtt:1883
-      PEBBLE_SEQUENCER__MqttBroker_Timeout: "10000000000"
       PEBBLE_SEQUENCER__ProjectID: 100
       PEBBLE_SEQUENCER__ProjectVersion: v0.0.1
+    volumes:
+      - ./build/sequencer:/data
 
