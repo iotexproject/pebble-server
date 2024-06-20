@@ -124,6 +124,18 @@ func RunDebugServer(ctx context.Context) {
 			c.Status(http.StatusNotFound)
 		},
 	)
+	eng.Handle(
+		http.MethodGet, "/version",
+		func(c *gin.Context) {
+			c.JSON(http.StatusOK, map[string]string{
+				"service_name": Name,
+				"feature":      Feature,
+				"version":      Version,
+				"commit_id":    CommitID,
+				"build_at":     Date,
+			})
+		},
+	)
 	eng.Run(":80")
 }
 

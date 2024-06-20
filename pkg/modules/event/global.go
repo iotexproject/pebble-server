@@ -96,6 +96,9 @@ func Handle(ctx context.Context, subtopic, topic string, data any) (err error) {
 		if t, ok := data.(TxEventUnmarshaler); ok {
 			ll = ll.WithValues("block", t.BlockNumber())
 		}
+		if t, ok := data.(WithIMEI); ok {
+			ll = ll.WithValues("imei", t.GetIMEI())
+		}
 		if err != nil {
 			ll.Error(err, "failed to handle event")
 		} else {
