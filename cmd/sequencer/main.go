@@ -109,7 +109,7 @@ func RunDebugServer(ctx context.Context) {
 			bc := must.BeTrueV(contexts.BlockchainFromContext(ctx))
 			monitors := bc.MonitorsInfo()
 
-			name, _ := c.Params.Get("name")
+			name := c.Query("name")
 			if name == "" {
 				c.JSON(http.StatusOK, monitors)
 				return
