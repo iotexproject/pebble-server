@@ -26,3 +26,19 @@ services:
       - ./build/postgres:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+
+  pebble-sequencer:
+    build:
+      context: .
+      dockerfile: ./cmd/sequencer/Dockerfile
+    #image: ghcr.io/machinefi/pebble-sequencer:main
+    container_name: pebble-sequencer
+    platform: linux/amd64
+    restart: always
+    depends_on:
+      - "postgres"
+      - "mqtt"
+    command:
+      [ "run" ]
+    ports:
+      - "80:80"
