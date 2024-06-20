@@ -119,7 +119,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 	task := &models.Task{
 		ProjectID:      must.BeTrueV(contexts.ProjectIDFromContext(ctx)),
 		InternalTaskID: id,
-		MessageIDs:     datatypes.JSON([]byte(`[` + id + `]`)),
+		MessageIDs:     datatypes.JSON([]byte(`["` + id + `"]`)),
 		Signature:      "",
 	}
 
