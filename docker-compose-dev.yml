@@ -48,6 +48,7 @@ services:
       PEBBLE_SEQUENCER__MqttBroker_Server: tcp://mqtt:1883
       PEBBLE_SEQUENCER__ProjectID: 100
       PEBBLE_SEQUENCER__ProjectVersion: v0.0.1
+      PEBBLE_SEQUENCER__Blockchain_Network: IOTX_TESTNET
     volumes:
       - ./build/sequencer:/data
 

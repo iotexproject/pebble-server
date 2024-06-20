@@ -108,7 +108,20 @@ func RunDebugServer(ctx context.Context) {
 		func(c *gin.Context) {
 			bc := must.BeTrueV(contexts.BlockchainFromContext(ctx))
 			monitors := bc.MonitorsInfo()
-			c.JSON(http.StatusOK, monitors)
+
+			name, _ := c.Params.Get("name")
+			if name == "" {
+				c.JSON(http.StatusOK, monitors)
+				return
+			} else {
+				for _, m := range monitors {
+					if m.Name == name {
+						c.JSON(http.StatusOK, m)
+						return
+					}
+				}
+			}
+			c.Status(http.StatusNotFound)
 		},
 	)
 	eng.Run(":80")
