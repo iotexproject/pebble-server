@@ -44,7 +44,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract docker metadata
-        id: pebble-sequencer
+        id: meta
         uses: docker/metadata-action@v4
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
@@ -56,5 +56,5 @@ jobs:
           platform: linux/amd64,linux/arm64
           file: cmd/sequencer/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.pebble-sequencer.outputs.tags }}
-          labels: ${{ steps.pebble-sequencer.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
