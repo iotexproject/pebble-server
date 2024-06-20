@@ -85,6 +85,7 @@ PEBBLE_SEQUENCER__MqttBroker_Retry_Interval: "3000000000"
 PEBBLE_SEQUENCER__MqttBroker_Retry_Repeats: "3"
 PEBBLE_SEQUENCER__MqttBroker_Server: tcp://127.0.0.1:1883
 PEBBLE_SEQUENCER__MqttBroker_Timeout: "10000000000"
+PEBBLE_SEQUENCER__PrivateKey_Hex: dbfe03b0406549232b8dccc04be8224fcc0afa300a33d4f335dcfdfead861c85
 PEBBLE_SEQUENCER__ProjectID: "0"
 PEBBLE_SEQUENCER__ProjectVersion: ""
 PEBBLE_SEQUENCER__ServerPort: "6666"

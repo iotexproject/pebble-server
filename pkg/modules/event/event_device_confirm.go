@@ -123,6 +123,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		Signature:      "",
 	}
 
+	sk := must.BeTrueV(contexts.EcdsaPrivateKeyFromContext(ctx))
 	db, _ := contexts.DatabaseFromContext(ctx)
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err = tx.Create(msg).Error; err != nil {
@@ -131,6 +132,10 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		if err = tx.Create(task).Error; err != nil {
 			return err
 		}
-		return nil
+		if err = task.Sign(sk, msg); err != nil {
+			return err
+		}
+		return tx.Model(task).
+			Update("signature", task.Signature).Where("id=?", task.ID).Error
 	})
 }

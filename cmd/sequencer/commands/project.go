@@ -1,8 +1,9 @@
-package main
+package commands
 
 import (
 	"bytes"
 	"compress/zlib"
+	"context"
 	_ "embed"
 	"encoding/hex"
 	"encoding/json"
@@ -13,7 +14,7 @@ import (
 	"github.com/xoctopus/confx/confcmd"
 )
 
-//go:embed abis/confirm.json
+//go:embed confirm.json
 var abi string
 
 func NewDefaultSproutConfigGenerator() *SproutConfigGenerator {
@@ -131,4 +132,8 @@ func (g *SproutConfigGenerator) Exec(cmd *cobra.Command, args ...string) error {
 	enc := json.NewEncoder(f)
 	enc.SetIndent("", "    ")
 	return enc.Encode(project)
+}
+
+func GenerateSproutConfig(_ context.Context) *cobra.Command {
+	return confcmd.NewCommand(NewDefaultSproutConfigGenerator())
 }

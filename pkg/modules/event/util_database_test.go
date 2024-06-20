@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/crypto"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
@@ -39,12 +40,19 @@ func testctx() context.Context {
 	if err := mq.Init(); err != nil {
 		return nil
 	}
+	sk := &crypto.EcdsaPrivateKey{
+		Hex: "dbfe03b0406549232b8dccc04be8224fcc0afa300a33d4f335dcfdfead861c85",
+	}
+	if err := sk.Init(); err != nil {
+		return nil
+	}
 
 	ctx := contextx.WithContextCompose(
 		contexts.WithDatabaseContext(d),
 		contexts.WithProjectIDContext(1),
 		contexts.WithProjectVersionContext("v0.0.1"),
 		contexts.WithMqttBrokerContext(mq),
+		contexts.WithEcdsaPrivateKeyContext(sk),
 	)(context.Background())
 
 	if _, err := event.UpsertOnConflict(ctx, &models.Device{

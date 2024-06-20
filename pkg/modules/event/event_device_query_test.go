@@ -9,6 +9,7 @@ import (
 )
 
 func TestDeviceQuery_Handle(t *testing.T) {
+	t.Skip("need postgres dependency")
 	r := require.New(t)
 
 	v, ok := event.NewEvent("device/+/query").(*event.DeviceQuery)

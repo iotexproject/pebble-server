@@ -2,23 +2,26 @@ package contexts
 
 import (
 	"context"
+	"crypto/ecdsa"
 
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/crypto"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/logger"
 )
 
 type (
-	ctxLogger         struct{}
-	ctxMqttBroker     struct{}
-	ctxMqttClient     struct{}
-	ctxBlockchain     struct{}
-	ctxDatabase       struct{}
-	ctxProjectID      struct{}
-	ctxProjectVersion struct{}
+	ctxLogger          struct{}
+	ctxMqttBroker      struct{}
+	ctxMqttClient      struct{}
+	ctxBlockchain      struct{}
+	ctxDatabase        struct{}
+	ctxProjectID       struct{}
+	ctxProjectVersion  struct{}
+	ctxEcdsaPrivateKey struct{}
 )
 
 func LoggerFromContext(ctx context.Context) (*logger.Logger, bool) {
@@ -104,5 +107,19 @@ func ProjectVersionFromContext(ctx context.Context) (string, bool) {
 func WithProjectVersionContext(v string) contextx.WithContext {
 	return func(ctx context.Context) context.Context {
 		return context.WithValue(ctx, ctxProjectVersion{}, v)
+	}
+}
+
+func EcdsaPrivateKeyFromContext(ctx context.Context) (*ecdsa.PrivateKey, bool) {
+	v, ok := ctx.Value(ctxEcdsaPrivateKey{}).(*crypto.EcdsaPrivateKey)
+	if !ok {
+		return nil, false
+	}
+	return v.PrivateKey, ok
+}
+
+func WithEcdsaPrivateKeyContext(v *crypto.EcdsaPrivateKey) contextx.WithContext {
+	return func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, ctxEcdsaPrivateKey{}, v)
 	}
 }

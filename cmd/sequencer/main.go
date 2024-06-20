@@ -4,21 +4,22 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 
-	"github.com/spf13/cobra"
+	"github.com/gin-gonic/gin"
 	"github.com/xoctopus/confx/confapp"
-	"github.com/xoctopus/confx/confcmd"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
 	"github.com/xoctopus/x/misc/must"
 
+	"github.com/machinefi/sprout-pebble-sequencer/cmd/sequencer/commands"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/crypto"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/logger"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
 )
 
@@ -35,6 +36,7 @@ var (
 		Database       *database.Postgres
 		Blockchain     *blockchain.Blockchain
 		Logger         *logger.Logger
+		PrivateKey     *crypto.EcdsaPrivateKey
 		ServerPort     uint16
 		ProjectID      uint64
 		ProjectVersion string
@@ -43,6 +45,7 @@ var (
 		Blockchain: &blockchain.Blockchain{Contracts: contracts},
 		MqttBroker: &confmqtt.Broker{},
 		Database:   &database.Postgres{},
+		PrivateKey: &crypto.EcdsaPrivateKey{Hex: "dbfe03b0406549232b8dccc04be8224fcc0afa300a33d4f335dcfdfead861c85"},
 		ServerPort: 6666,
 	}
 	ctx context.Context
@@ -56,6 +59,7 @@ func init() {
 		contexts.WithMqttBrokerContext(config.MqttBroker),
 		contexts.WithProjectIDContext(config.ProjectID),
 		contexts.WithProjectVersionContext(config.ProjectVersion),
+		contexts.WithEcdsaPrivateKeyContext(config.PrivateKey),
 	)(context.Background())
 
 	app = confapp.NewAppContext(
@@ -77,16 +81,11 @@ func init() {
 		"project id and version is required",
 	)
 
-	app.AddCommand(&cobra.Command{
-		Use:   "migrate",
-		Short: "migrate database",
-		Run: func(cmd *cobra.Command, args []string) {
-			Migrate(ctx)
-		},
-	})
-	app.AddCommand(confcmd.NewCommand(NewDefaultSproutConfigGenerator()))
+	app.AddCommand(commands.Migrate(ctx))
+	app.AddCommand(commands.GenerateSproutConfig(ctx))
 }
 
+// Main app main entry
 func Main() error {
 	if err := config.Blockchain.RunMonitors(); err != nil {
 		config.Logger.Error(err, "failed to start tx monitor")
@@ -103,19 +102,19 @@ func Main() error {
 	return nil
 }
 
-func Migrate(ctx context.Context) {
-	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
-	must.NoErrorWrap(db.AutoMigrate(
-		&models.Account{},
-		&models.App{},
-		&models.AppV2{},
-		&models.Bank{},
-		&models.BankRecord{},
-		&models.Device{},
-		&models.DeviceRecord{},
-		&models.Task{},
-		&models.Message{},
-	), "failed to migrate database")
+// RunDebugServer enable simple http server for debugging
+func RunDebugServer(ctx context.Context, addr string) {
+	// addr := contexts.ServerAddrFromContext(ctx)
+	eng := gin.Default()
+	eng.Handle(
+		http.MethodGet, "/debug/monitor-info",
+		func(c *gin.Context) {
+			bc := must.BeTrueV(contexts.BlockchainFromContext(ctx))
+			monitors := bc.MonitorsInfo()
+			c.JSON(http.StatusOK, monitors)
+		},
+	)
+	eng.Run(addr)
 }
 
 func main() {

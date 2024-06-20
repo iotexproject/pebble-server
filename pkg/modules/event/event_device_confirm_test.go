@@ -10,6 +10,7 @@ import (
 )
 
 func TestDeviceConfirmUnmarshal(t *testing.T) {
+	t.Skip("need postgres dependency")
 	r := require.New(t)
 
 	t.Run("UnmarshalTopic", func(t *testing.T) {
