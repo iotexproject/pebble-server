@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -37,7 +36,6 @@ var (
 		Blockchain     *blockchain.Blockchain
 		Logger         *logger.Logger
 		PrivateKey     *crypto.EcdsaPrivateKey
-		ServerPort     uint16
 		ProjectID      uint64
 		ProjectVersion string
 	}{
@@ -46,7 +44,6 @@ var (
 		MqttBroker: &confmqtt.Broker{},
 		Database:   &database.Postgres{},
 		PrivateKey: &crypto.EcdsaPrivateKey{Hex: "dbfe03b0406549232b8dccc04be8224fcc0afa300a33d4f335dcfdfead861c85"},
-		ServerPort: 6666,
 	}
 	ctx context.Context
 )
@@ -93,7 +90,7 @@ func Main() error {
 	event.InitRunner(ctx)()
 	defer config.Blockchain.Close()
 
-	go RunDebugServer(ctx, fmt.Sprintf(":%d", config.ServerPort))
+	go RunDebugServer(ctx)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
@@ -103,7 +100,7 @@ func Main() error {
 }
 
 // RunDebugServer enable simple http server for debugging
-func RunDebugServer(ctx context.Context, addr string) {
+func RunDebugServer(ctx context.Context) {
 	// addr := contexts.ServerAddrFromContext(ctx)
 	eng := gin.Default()
 	eng.Handle(
@@ -114,7 +111,7 @@ func RunDebugServer(ctx context.Context, addr string) {
 			c.JSON(http.StatusOK, monitors)
 		},
 	)
-	eng.Run(addr)
+	eng.Run(":80")
 }
 
 func main() {
