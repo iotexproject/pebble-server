@@ -83,7 +83,16 @@ type message struct {
 }
 
 func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
-	defer func() { err = WrapHandleError(err, e) }()
+	projectID := must.BeTrueV(contexts.ProjectIDFromContext(ctx))
+	projectVersion := must.BeTrueV(contexts.ProjectVersionFromContext(ctx))
+
+	defer func() {
+		err = WrapHandleErrorf(
+			err, e,
+			"project_id: %d project_version: %s",
+			projectID, projectVersion,
+		)
+	}()
 
 	dev := &models.Device{ID: e.imei}
 	err = FetchByPrimary(ctx, dev)
@@ -104,8 +113,8 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 	msg := &models.Message{
 		MessageID:      dev.Address + fmt.Sprintf("-%d", e.pkg.GetTimestamp()),
 		ClientID:       dev.Address,
-		ProjectID:      must.BeTrueV(contexts.ProjectIDFromContext(ctx)),
-		ProjectVersion: must.BeTrueV(contexts.ProjectVersionFromContext(ctx)),
+		ProjectID:      projectID,
+		ProjectVersion: projectVersion,
 		Data: must.NoErrorV(json.Marshal([]message{{
 			IMEI:        e.imei,
 			Owner:       dev.Owner,
@@ -117,7 +126,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		InternalTaskID: id,
 	}
 	task := &models.Task{
-		ProjectID:      must.BeTrueV(contexts.ProjectIDFromContext(ctx)),
+		ProjectID:      projectID,
 		InternalTaskID: id,
 		MessageIDs:     datatypes.JSON([]byte(`["` + id + `"]`)),
 		Signature:      "",

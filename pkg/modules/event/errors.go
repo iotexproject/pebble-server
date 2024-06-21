@@ -57,17 +57,31 @@ func WrapHandleError(e error, t any) error {
 	if e == nil {
 		return nil
 	}
-	return &HandleError{t, e}
+	return &HandleError{t, e, ""}
+}
+
+func WrapHandleErrorf(e error, t any, msg string, args ...any) error {
+	if e == nil {
+		return nil
+	}
+	if len(args) > 0 && msg != "" {
+		msg = fmt.Sprintf(msg, args...)
+	}
+	return &HandleError{t, e, msg}
 }
 
 type HandleError struct {
-	t any
-	e error
+	t   any
+	e   error
+	msg string
 }
 
 func (e *HandleError) Error() string {
-	return fmt.Sprintf(
+	msg := fmt.Sprintf(
 		"failed to handle event `%s`: %s",
 		reflect.Indirect(reflect.ValueOf(e.t)).Type(), e.e.Error(),
 	)
+	if e.msg != "" {
+		return msg + " " + e.msg
+	}
 }
