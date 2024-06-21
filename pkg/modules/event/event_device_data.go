@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"math/big"
 	"strconv"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -95,6 +96,10 @@ func (e *DeviceData) Handle(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to fetch dev: %s", dev.ID)
 	}
 
+	if dev.Status != models.CONFIRM {
+		return errors.Errorf("require deivce confirmed(2), but got %d", dev.Status)
+	}
+
 	e.addr = common.HexToAddress(dev.Address)
 	if !e.Validate() {
 		return WrapValidateError(e)
@@ -134,13 +139,12 @@ func (e *DeviceData) handleConfig(ctx context.Context, dev *models.Device, pkg *
 
 func (e *DeviceData) handleState(ctx context.Context, dev *models.Device, pkg *pebblepb.SensorState) error {
 	dev.State = int32(pkg.GetState())
-	dev.OperationTimes = models.NewOperationTimes()
 
 	err := UpdateByPrimary(ctx, dev, map[string]any{
 		"state":      dev.State,
-		"updated_at": dev.UpdatedAt,
+		"updated_at": time.Now(),
 	})
-	return errors.Wrapf(err, "failed to update device state: %s", dev.ID)
+	return errors.Wrapf(err, "failed to update device state: %s %d", dev.ID, dev.State)
 }
 
 func (e *DeviceData) handleData(ctx context.Context, dev *models.Device, pkg *pebblepb.SensorData) error {

@@ -49,7 +49,7 @@ func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 		Avatar:         e.Avatar,
 		OperationTimes: models.NewOperationTimes(),
 	}
-	_, err = UpsertOnConflict(ctx, app, "id", "version", "uri", "avatar")
+	_, err = UpsertOnConflict(ctx, app, "id", "version", "uri", "avatar", "updated_at")
 	if err != nil {
 		return errors.Wrapf(err, "failed to upsert app: %s", app.ID)
 	}

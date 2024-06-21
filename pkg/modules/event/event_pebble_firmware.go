@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
 
@@ -42,16 +43,19 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 
 	app := &models.App{ID: e.App}
 	if err = FetchByPrimary(ctx, app); err != nil {
-		return errors.Wrap(err, "failed to fetch device")
+		return errors.Wrapf(err, "failed to fetch app: %s", app.ID)
 	}
 
 	dev := &models.Device{
 		ID:       e.Imei,
 		Firmware: app.ID + " " + app.Version,
 	}
-	err = UpdateByPrimary(ctx, dev, map[string]any{"firmware": dev.Firmware})
+	err = UpdateByPrimary(ctx, dev, map[string]any{
+		"firmware":   dev.Firmware,
+		"updated_at": time.Now(),
+	})
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to update device firmware: %s %s", dev.ID, dev.Firmware)
 	}
 
 	err = PublicMqttMessage(ctx,

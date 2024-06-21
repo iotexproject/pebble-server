@@ -43,7 +43,7 @@ func (e *PebbleRemove) Handle(ctx context.Context) (err error) {
 
 	dev := &models.Device{ID: e.Imei}
 	if err = FetchByPrimary(ctx, dev); err != nil {
-		return errors.Wrap(err, "failed to fetch device")
+		return errors.Wrapf(err, "failed to fetch device: %s", dev.ID)
 	}
 	if dev.Owner != e.Owner.String() {
 		return errors.Errorf(

@@ -3,9 +3,9 @@ package event
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/pkg/errors"
-	"gorm.io/gorm"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
@@ -41,18 +41,17 @@ func (e *PebbleConfig) Unmarshal(v any) error {
 func (e *PebbleConfig) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	md := &models.Device{ID: e.Imei}
-	fs := map[string]any{"config": e.Config}
-	if err = UpdateByPrimary(ctx, md, fs); err != nil {
-		return err
+	dev := &models.Device{ID: e.Imei, Config: e.Config}
+	if err = UpdateByPrimary(ctx, dev, map[string]any{
+		"config":     e.Config,
+		"updated_at": time.Now(),
+	}); err != nil {
+		return errors.Wrapf(err, "failed to update device config: %s %s", dev.ID, dev.Config)
 	}
 
 	app := &models.AppV2{ID: e.Config}
 	if err = FetchByPrimary(ctx, app); err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
-		}
-		return err
+		return errors.Wrapf(err, "failed to fetch app_v2: %s", app.ID)
 	}
 
 	err = PublicMqttMessage(ctx,

@@ -100,6 +100,16 @@ func Handle(ctx context.Context, subtopic, topic string, data any) (err error) {
 		if t, ok := data.(TxEventUnmarshaler); ok {
 			ll = ll.WithValues("block", t.BlockNumber())
 		}
+		if t, ok := v.(WithIMEI); ok {
+			ll = ll.WithValues("imei", t.GetIMEI())
+		}
+		if t, ok := v.(CanValidateSignature); ok {
+			ll = ll.WithValues(
+				"sig", t.Signature(),
+				"sig_addr", t.Address(),
+				"sig_hash", t.Hash(),
+			)
+		}
 		if err != nil {
 			ll.Error(err, "failed to handle event")
 		} else {
