@@ -79,7 +79,7 @@ type message struct {
 	Timestamp   uint32 `json:"timestamp"`
 	Signature   string `json:"signature"`
 	GasLimit    string `json:"gasLimit"`
-	DataChannel int32  `json:"dataChannel"`
+	DataChannel uint32 `json:"dataChannel"`
 }
 
 func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
@@ -106,18 +106,18 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 	projectID := must.BeTrueV(contexts.ProjectIDFromContext(ctx))
 	projectVersion := must.BeTrueV(contexts.ProjectVersionFromContext(ctx))
 	msg := &models.Message{
-		MessageID:      dev.Address + fmt.Sprintf("-%d", e.pkg.GetTimestamp()),
+		MessageID:      dev.Address + fmt.Sprintf("-%d-%s", e.pkg.GetTimestamp(), id),
 		ClientID:       dev.Address,
 		ProjectID:      projectID,
 		ProjectVersion: projectVersion,
-		Data: must.NoErrorV(json.Marshal([]message{{
+		Data: must.NoErrorV(json.Marshal(message{
 			IMEI:        e.imei,
 			Owner:       common.BytesToAddress(e.pkg.GetOwner()).String(),
 			Timestamp:   e.pkg.GetTimestamp(),
 			Signature:   hex.EncodeToString(e.pkg.GetSignature()),
 			GasLimit:    big.NewInt(200000).String(),
-			DataChannel: dev.DataChannel,
-		}})),
+			DataChannel: uint32(dev.DataChannel),
+		})),
 		InternalTaskID: id,
 	}
 	task := &models.Task{

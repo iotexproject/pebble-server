@@ -16,6 +16,17 @@ import (
 // main is required for TinyGo to compile to Wasm.
 func main() {}
 
+/*
+type message struct {
+	IMEI        string `json:"imei"`
+	Owner       string `json:"owner"`
+	Timestamp   uint32 `json:"timestamp"`
+	Signature   string `json:"signature"`
+	GasLimit    string `json:"gasLimit"`
+	DataChannel uint32 `json:"dataChannel"`
+}
+*/
+
 //export start
 func onStart(rid uint32) int32 {
 	res, err := stream.GetDataByRID(rid)
@@ -28,10 +39,10 @@ func onStart(rid uint32) int32 {
 	log.Log("wasm get datas from json: " + gjson.Get(string(res), "datas").String())
 	datas := gjson.Get(string(res), "datas").Array()
 	imei := gjson.Get(datas[0].String(), "imei").String()
-	owner := []byte(gjson.Get(datas[0].String(), "owner").String())
+	owner := address.HexToAddress(gjson.Get(datas[0].String(), "owner").String())
 	timestamp := uint32(gjson.Get(datas[0].String(), "timestamp").Uint())
-	signature := []byte(gjson.Get(datas[0].String(), "signature").String())
-	gasLimit := big.NewInt(gjson.Get(datas[0].String(), "gasLimit").Int())
+	signature, _ := hex.DecodeString(gjson.Get(datas[0].String(), "signature").String())
+	gasLimit, _ := new(big.Int).SetString(gjson.Get(datas[0].String(), "gasLimit").String(), 10)
 	dataChannel := uint32(gjson.Get(datas[0].String(), "dataChannel").Uint())
 
 	/*https://github.com/iotexproject/pebble-contracts/blob/1a1c91a287317d8c068edb571149aedb10c0b754/contracts/PebbleImpl.sol
@@ -49,7 +60,8 @@ func onStart(rid uint32) int32 {
 		log.Log(fmt.Sprintf("abi.NewMethod error: %s", err.Error()))
 		return -1
 	}
-	data, err := method.Pack(imei, address.BytesToAddress(owner), timestamp, signature, gasLimit, dataChannel)
+
+	data, err := method.Pack(imei, owner, timestamp, signature, gasLimit, dataChannel)
 	if err != nil {
 		log.Log(fmt.Sprintf("pack error: %s", err.Error()))
 		return -1
