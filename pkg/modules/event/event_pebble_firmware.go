@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
@@ -40,7 +42,7 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 
 	app := &models.App{ID: e.App}
 	if err = FetchByPrimary(ctx, app); err != nil {
-		return err
+		return errors.Wrap(err, "failed to fetch device")
 	}
 
 	dev := &models.Device{
@@ -52,7 +54,7 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 		return err
 	}
 
-	return PublicMqttMessage(ctx,
+	err = PublicMqttMessage(ctx,
 		"pebble_firmware", "backend/"+e.Imei+"/firmware",
 		&struct {
 			Firmware string `json:"firmware"`
@@ -64,4 +66,5 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 			Version:  app.Version,
 		},
 	)
+	return errors.Wrap(err, "failed to publish pebble_firmware response")
 }

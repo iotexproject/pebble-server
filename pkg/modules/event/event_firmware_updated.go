@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
@@ -49,10 +51,10 @@ func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 	}
 	_, err = UpsertOnConflict(ctx, app, "id", "version", "uri", "avatar")
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to upsert app: %s", app.ID)
 	}
 
-	return PublicMqttMessage(ctx,
+	err = PublicMqttMessage(ctx,
 		"firmware_updated", "device/app_update/"+app.ID,
 		&struct {
 			Name    string `json:"name"`
@@ -66,4 +68,5 @@ func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 			Avatar:  app.Avatar,
 		},
 	)
+	return errors.Wrap(err, "failed to publish firmware_updated response")
 }

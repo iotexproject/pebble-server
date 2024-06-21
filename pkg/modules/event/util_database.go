@@ -20,15 +20,16 @@ func UpsertOnConflict(ctx context.Context, m any, conflict string, updates ...st
 	} else {
 		cond.DoUpdates = clause.AssignmentColumns(updates)
 	}
-	if err := db.Clauses(cond).Create(m).Error; err != nil {
+	tx := db.Clauses(cond).Create(m)
+	if err := tx.Error; err != nil {
 		return nil, err
 	}
 	return m, nil
 }
 
-func DeleteByPrimary(ctx context.Context, m any, pk any) error {
+func DeleteByPrimary(ctx context.Context, m any) error {
 	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
-	return db.Delete(m, pk).Error
+	return db.Delete(m).Error
 }
 
 func UpdateByPrimary(ctx context.Context, m any, fields map[string]any) error {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
@@ -63,9 +64,9 @@ func (e *BankPaid) Handle(ctx context.Context) (err error) {
 
 	_, err = UpsertOnConflict(ctx, br, "id")
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to upsert bank_record: %s", br.ID)
 	}
 
 	_, err = UpsertOnConflict(ctx, b, "address", "balance", "updated_at")
-	return err
+	return errors.Wrapf(err, "failed to upsert bank: %s", b.Address)
 }

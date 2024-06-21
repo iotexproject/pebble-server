@@ -128,7 +128,7 @@ func TestDatabaseOperations(t *testing.T) {
 			Avatar: "avatar",
 		}
 
-		err := event.DeleteByPrimary(ctx, m, "111")
+		err := event.DeleteByPrimary(ctx, m)
 
 		_, err = event.UpsertOnConflict(ctx, m, "id")
 		r.NoError(err)
@@ -153,7 +153,7 @@ func TestDatabaseOperations(t *testing.T) {
 
 	t.Run("DeleteByPrimary", func(t *testing.T) {
 		m := &models.Account{ID: "111"}
-		err := event.DeleteByPrimary(ctx, m, "111")
+		err := event.DeleteByPrimary(ctx, m)
 		r.NoError(err)
 
 		err = event.FetchByPrimary(ctx, m)

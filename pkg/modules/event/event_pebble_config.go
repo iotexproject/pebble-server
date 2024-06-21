@@ -55,9 +55,10 @@ func (e *PebbleConfig) Handle(ctx context.Context) (err error) {
 		return err
 	}
 
-	return PublicMqttMessage(ctx,
+	err = PublicMqttMessage(ctx,
 		"pebble_config",
 		"backend/"+e.Imei+"/config",
 		app.Data,
 	)
+	return errors.Wrap(err, "failed to publish pebble_config response")
 }

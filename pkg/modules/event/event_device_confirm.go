@@ -48,7 +48,7 @@ func (e *DeviceConfirm) Unmarshal(v any) (err error) {
 
 	pkg := &pebblepb.ConfirmPackage{}
 	if err = proto.Unmarshal(data, pkg); err != nil {
-		return
+		return errors.Wrap(err, "failed to unmarshal proto")
 	}
 	e.pkg = pkg
 
@@ -88,11 +88,11 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 	dev := &models.Device{ID: e.imei}
 	err = FetchByPrimary(ctx, dev)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to fetch dev: %s", dev.ID)
 	}
 
 	if dev.Status != models.PROPOSAL {
-		return errors.Errorf("device `%s` is %d, donnt need confirm", dev.ID, dev.Status)
+		return errors.Errorf("device `%s` is %d, donnot need confirm", dev.ID, dev.Status)
 	}
 
 	e.addr = common.HexToAddress(dev.Address)
@@ -125,17 +125,19 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 
 	sk := must.BeTrueV(contexts.EcdsaPrivateKeyFromContext(ctx))
 	db, _ := contexts.DatabaseFromContext(ctx)
-	return db.Transaction(func(tx *gorm.DB) error {
+	err = db.Transaction(func(tx *gorm.DB) error {
 		if err = tx.Create(msg).Error; err != nil {
-			return err
+			return errors.Wrapf(err, "failed to create message")
 		}
 		if err = tx.Create(task).Error; err != nil {
-			return err
+			return errors.Wrapf(err, "failed to create task")
 		}
 		if err = task.Sign(sk, msg); err != nil {
-			return err
+			return errors.Wrapf(err, "failed to sign message")
 		}
-		return tx.Model(task).
-			Update("signature", task.Signature).Where("id=?", task.ID).Error
+		err = tx.Model(task).Update("signature", task.Signature).
+			Where("id=?", task.ID).Error
+		return errors.Wrapf(err, "failed to update task signature")
 	})
+	return errors.Wrap(err, "in transaction")
 }

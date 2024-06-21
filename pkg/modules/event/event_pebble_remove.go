@@ -43,7 +43,7 @@ func (e *PebbleRemove) Handle(ctx context.Context) (err error) {
 
 	dev := &models.Device{ID: e.Imei}
 	if err = FetchByPrimary(ctx, dev); err != nil {
-		return err
+		return errors.Wrap(err, "failed to fetch device")
 	}
 	if dev.Owner != e.Owner.String() {
 		return errors.Errorf(
@@ -58,5 +58,5 @@ func (e *PebbleRemove) Handle(ctx context.Context) (err error) {
 		dev.Proposer = ""
 	}
 	_, err = UpsertOnConflict(ctx, dev, "id", "owner", "status", "proposer")
-	return err
+	return errors.Wrapf(err, "failed to upsert device: %s", dev.ID)
 }

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
@@ -48,5 +49,5 @@ func (e *AccountUpdated) Handle(ctx context.Context) (err error) {
 		OperationTimes: models.NewOperationTimes(),
 	}
 	_, err = UpsertOnConflict(ctx, m, "id", "name", "avatar", "updated_at")
-	return err
+	return errors.Wrapf(err, "failed to upsert account: %s %s", m.ID, m.Name)
 }

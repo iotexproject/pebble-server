@@ -92,7 +92,7 @@ func (e *DeviceData) Handle(ctx context.Context) (err error) {
 
 	dev := &models.Device{ID: e.imei}
 	if err = FetchByPrimary(ctx, dev); err != nil {
-		return err
+		return errors.Wrapf(err, "failed to fetch dev: %s", dev.ID)
 	}
 
 	e.addr = common.HexToAddress(dev.Address)
@@ -102,14 +102,15 @@ func (e *DeviceData) Handle(ctx context.Context) (err error) {
 
 	switch pkg := e.pkg.(type) {
 	case *pebblepb.SensorConfig:
-		return e.handleConfig(ctx, dev, pkg)
+		err = e.handleConfig(ctx, dev, pkg)
 	case *pebblepb.SensorState:
-		return e.handleState(ctx, dev, pkg)
+		err = e.handleState(ctx, dev, pkg)
 	case *pebblepb.SensorData:
-		return e.handleData(ctx, dev, pkg)
+		err = e.handleData(ctx, dev, pkg)
 	default:
-		return errors.Errorf("unexpected senser package type: %d", pkg)
+		err = errors.Errorf("unexpected senser package type")
 	}
+	return errors.Wrapf(err, "failed to handle %T", e.pkg)
 }
 
 func (e *DeviceData) handleConfig(ctx context.Context, dev *models.Device, pkg *pebblepb.SensorConfig) error {
@@ -128,17 +129,18 @@ func (e *DeviceData) handleConfig(ctx context.Context, dev *models.Device, pkg *
 		"bulk_upload_sampling_cnt", "bulk_upload_sampling_freq",
 		"beep", "real_firmware", "configurable", "updated_at",
 	)
-	return err
+	return errors.Wrapf(err, "failed to upsert senser config: %s", dev.ID)
 }
 
 func (e *DeviceData) handleState(ctx context.Context, dev *models.Device, pkg *pebblepb.SensorState) error {
 	dev.State = int32(pkg.GetState())
 	dev.OperationTimes = models.NewOperationTimes()
 
-	return UpdateByPrimary(ctx, dev, map[string]any{
+	err := UpdateByPrimary(ctx, dev, map[string]any{
 		"state":      dev.State,
 		"updated_at": dev.UpdatedAt,
 	})
+	return errors.Wrapf(err, "failed to update device state: %s", dev.ID)
 }
 
 func (e *DeviceData) handleData(ctx context.Context, dev *models.Device, pkg *pebblepb.SensorData) error {
@@ -185,5 +187,5 @@ func (e *DeviceData) handleData(ctx context.Context, dev *models.Device, pkg *pe
 	}
 	// todo need submit matrix
 	_, err := UpsertOnConflict(ctx, dr, "id")
-	return err
+	return errors.Wrapf(err, "failed to upsert senser data: %s", dev.ID)
 }

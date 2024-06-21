@@ -35,5 +35,5 @@ func (e *FirmwareRemoved) Unmarshal(v any) error {
 }
 
 func (e *FirmwareRemoved) Handle(ctx context.Context) (err error) {
-	return WrapHandleError(DeleteByPrimary(ctx, &models.App{}, e.Name), e)
+	return WrapHandleError(DeleteByPrimary(ctx, &models.App{ID: e.Name}), e)
 }

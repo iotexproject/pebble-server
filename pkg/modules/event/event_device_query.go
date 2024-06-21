@@ -34,7 +34,7 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 	dev := &models.Device{ID: e.imei}
 	err = FetchByPrimary(ctx, dev)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to fetch dev: %s", dev.ID)
 	}
 
 	if dev.Status == models.CREATED {
@@ -50,14 +50,14 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 		app := &models.App{ID: parts[0]}
 		err = FetchByPrimary(ctx, app)
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed to fetch app: %s", app.ID)
 		}
 		firmware = app.ID
 		uri = app.Uri
 		version = app.Version
 	}
 
-	return PublicMqttMessage(ctx,
+	err = PublicMqttMessage(ctx,
 		"device_query", "backend/"+e.imei+"/status",
 		&struct {
 			Status   int32  `json:"status"`
@@ -73,4 +73,5 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 			Version:  version,
 		},
 	)
+	return errors.Wrapf(err, "failed to publish device_query response")
 }

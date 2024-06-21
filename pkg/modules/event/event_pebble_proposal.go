@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
@@ -53,5 +54,5 @@ func (e *PebbleProposal) Handle(ctx context.Context) (err error) {
 		OperationTimes: models.NewOperationTimes(),
 	}
 	_, err = UpsertOnConflict(ctx, dev, "id", "name", "avatar", "status", "proposer", "updated_at")
-	return err
+	return errors.Wrapf(err, "failed to upsert device: %s", dev.ID)
 }
