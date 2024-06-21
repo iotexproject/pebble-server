@@ -49,16 +49,6 @@ var (
 )
 
 func init() {
-	ctx = contextx.WithContextCompose(
-		contexts.WithLoggerContext(config.Logger),
-		contexts.WithBlockchainContext(config.Blockchain),
-		contexts.WithDatabaseContext(config.Database),
-		contexts.WithMqttBrokerContext(config.MqttBroker),
-		contexts.WithProjectIDContext(config.ProjectID),
-		contexts.WithProjectVersionContext(config.ProjectVersion),
-		contexts.WithEcdsaPrivateKeyContext(config.PrivateKey),
-	)(context.Background())
-
 	app = confapp.NewAppContext(
 		confapp.WithBuildMeta(confapp.Meta{
 			Name:     Name,
@@ -77,6 +67,16 @@ func init() {
 		config.ProjectVersion != "" && config.ProjectID != 0,
 		"project id and version is required",
 	)
+
+	ctx = contextx.WithContextCompose(
+		contexts.WithLoggerContext(config.Logger),
+		contexts.WithBlockchainContext(config.Blockchain),
+		contexts.WithDatabaseContext(config.Database),
+		contexts.WithMqttBrokerContext(config.MqttBroker),
+		contexts.WithProjectIDContext(config.ProjectID),
+		contexts.WithProjectVersionContext(config.ProjectVersion),
+		contexts.WithEcdsaPrivateKeyContext(config.PrivateKey),
+	)(context.Background())
 
 	app.AddCommand(commands.Migrate(ctx))
 	app.AddCommand(commands.GenerateSproutConfig(ctx))
