@@ -107,7 +107,7 @@ func testctx() context.Context {
 }
 
 func TestDatabaseOperations(t *testing.T) {
-	// t.Skip("need pg dependencies")
+	t.Skip("need pg dependencies")
 
 	r := require.New(t)
 
