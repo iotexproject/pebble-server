@@ -112,7 +112,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		ProjectVersion: projectVersion,
 		Data: must.NoErrorV(json.Marshal([]message{{
 			IMEI:        e.imei,
-			Owner:       dev.Owner,
+			Owner:       common.BytesToAddress(e.pkg.GetOwner()).String(),
 			Timestamp:   e.pkg.GetTimestamp(),
 			Signature:   hex.EncodeToString(e.pkg.GetSignature()),
 			GasLimit:    big.NewInt(200000).String(),
