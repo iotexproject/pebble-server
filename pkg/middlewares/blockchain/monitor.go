@@ -253,6 +253,7 @@ func (m *Monitor) Watch(opts WatchOptions, sink chan<- *types.Log) (Subscription
 		sub:     opts.SubID,
 		sink:    sink,
 		start:   start,
+		current: current,
 	}
 	return newSubscription(ctx, w, func() { m.subs.Delete(opts.SubID) }), nil
 }
