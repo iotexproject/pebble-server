@@ -84,4 +84,5 @@ func (e *HandleError) Error() string {
 	if e.msg != "" {
 		return msg + " " + e.msg
 	}
+	return msg
 }
