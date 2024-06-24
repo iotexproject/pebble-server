@@ -114,7 +114,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 			IMEI:        e.imei,
 			Owner:       common.BytesToAddress(e.pkg.GetOwner()).String(),
 			Timestamp:   e.pkg.GetTimestamp(),
-			Signature:   hex.EncodeToString(e.pkg.GetSignature()),
+			Signature:   hex.EncodeToString(append(e.pkg.GetSignature(), byte(0))),
 			GasLimit:    big.NewInt(200000).String(),
 			DataChannel: uint32(dev.DataChannel),
 		})),

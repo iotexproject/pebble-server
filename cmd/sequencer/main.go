@@ -43,7 +43,10 @@ var (
 		Blockchain: &blockchain.Blockchain{Contracts: contracts},
 		MqttBroker: &confmqtt.Broker{},
 		Database:   &database.Postgres{},
-		PrivateKey: &crypto.EcdsaPrivateKey{Hex: "dbfe03b0406549232b8dccc04be8224fcc0afa300a33d4f335dcfdfead861c85"},
+		// from sprout default sequencer, to make coordinator validate sequencer signature
+		PrivateKey: &crypto.EcdsaPrivateKey{
+			Hex: "dbfe03b0406549232b8dccc04be8224fcc0afa300a33d4f335dcfdfead861c85",
+		},
 	}
 	ctx context.Context
 )
