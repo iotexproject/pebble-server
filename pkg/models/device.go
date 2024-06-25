@@ -23,7 +23,7 @@ type Device struct {
 	BulkUploadSamplingCnt  int32  `gorm:"not null;default:0"`
 	BulkUploadSamplingFreq int32  `gorm:"not null;default:0"`
 	Beep                   int32  `gorm:"not null;default:0"`
-	RealFirmware           string `gorm:"not null;default:0"`
+	RealFirmware           string `gorm:"not null;default:''"`
 	State                  int32  `gorm:"not null;default:0"`
 	Type                   int32  `gorm:"not null;default:0"`
 	Configurable           bool   `gorm:"not null;default:0;default:true"`
