@@ -8,6 +8,7 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
 	"golang.org/x/exp/maps"
@@ -164,7 +165,7 @@ func Init(ctx context.Context) error {
 func StartMqttEventConsuming(ctx context.Context, v Event) error {
 	mq := must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
 
-	c, err := mq.NewClient(v.Topic(), v.Topic())
+	c, err := mq.NewClient(v.Topic()+uuid.NewString(), v.Topic())
 	if err != nil {
 		return errors.Wrapf(err, "failed to new mqtt client")
 	}
