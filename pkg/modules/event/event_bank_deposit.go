@@ -23,8 +23,7 @@ type BankDeposit struct {
 	To      common.Address
 	Amount  *big.Int
 	Balance *big.Int
-
-	h common.Hash
+	TxHash
 }
 
 func (e *BankDeposit) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
@@ -47,7 +46,7 @@ func (e *BankDeposit) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
 	br := &models.BankRecord{
-		ID:             e.h.String(),
+		ID:             e.hash.String(),
 		From:           "",
 		To:             e.To.String(),
 		Amount:         e.Amount.String(),
