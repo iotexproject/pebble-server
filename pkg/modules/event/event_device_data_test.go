@@ -10,7 +10,7 @@ import (
 )
 
 func TestDeviceDataUnmarshal(t *testing.T) {
-	// t.Skip("need postgres dependency")
+	t.Skip("need postgres dependency")
 	r := require.New(t)
 
 	v, ok := event.NewEvent("device/+/data").(*event.DeviceData)
