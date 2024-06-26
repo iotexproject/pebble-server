@@ -67,6 +67,6 @@ func onStart(rid uint32) int32 {
 		return -1
 	}
 	log.Log("rawData: " + hex.EncodeToString(data))
-	stream.SetDataByRID(rid, hex.EncodeToString(data))
+	stream.SetBytesByRID(rid, data)
 	return int32(rid)
 }

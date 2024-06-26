@@ -239,6 +239,11 @@ func (p *Persist) LoadJSONValue(k []byte, v any) error {
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if recover() != nil {
+			println(string(data))
+		}
+	}()
 	return json.Unmarshal(data, v)
 }
 
