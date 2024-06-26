@@ -38,6 +38,7 @@ var (
 		PrivateKey     *crypto.EcdsaPrivateKey
 		ProjectID      uint64
 		ProjectVersion string
+		WhiteList      contexts.WhiteList
 	}{
 		Logger:     &logger.Logger{Level: slog.LevelDebug},
 		Blockchain: &blockchain.Blockchain{Contracts: contracts},
@@ -47,6 +48,7 @@ var (
 		PrivateKey: &crypto.EcdsaPrivateKey{
 			Hex: "dbfe03b0406549232b8dccc04be8224fcc0afa300a33d4f335dcfdfead861c85",
 		},
+		// WhiteList: contexts.WhiteList{"103381234567407"},
 	}
 	ctx context.Context
 )
@@ -79,6 +81,7 @@ func init() {
 		contexts.WithProjectIDContext(config.ProjectID),
 		contexts.WithProjectVersionContext(config.ProjectVersion),
 		contexts.WithEcdsaPrivateKeyContext(config.PrivateKey),
+		contexts.WithWhiteListKeyContext(config.WhiteList),
 	)(context.Background())
 
 	app.AddCommand(commands.Migrate(ctx))

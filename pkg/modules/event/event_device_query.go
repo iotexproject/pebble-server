@@ -58,7 +58,7 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 	}
 
 	err = PublicMqttMessage(ctx,
-		"device_query", "backend/"+e.imei+"/status",
+		"device_query", "backend/"+e.imei+"/status", e.imei,
 		&struct {
 			Status   int32  `json:"status"`
 			Proposer string `json:"proposer,omitempty"`

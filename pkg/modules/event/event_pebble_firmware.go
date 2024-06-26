@@ -59,7 +59,7 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 	}
 
 	err = PublicMqttMessage(ctx,
-		"pebble_firmware", "backend/"+e.Imei+"/firmware",
+		"pebble_firmware", "backend/"+e.Imei+"/firmware", e.Imei,
 		&struct {
 			Firmware string `json:"firmware"`
 			Uri      string `json:"uri"`

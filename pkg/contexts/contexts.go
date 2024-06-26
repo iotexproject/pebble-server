@@ -22,6 +22,7 @@ type (
 	ctxProjectID       struct{}
 	ctxProjectVersion  struct{}
 	ctxEcdsaPrivateKey struct{}
+	ctxWhiteList       struct{}
 )
 
 func LoggerFromContext(ctx context.Context) (*logger.Logger, bool) {
@@ -121,5 +122,19 @@ func EcdsaPrivateKeyFromContext(ctx context.Context) (*ecdsa.PrivateKey, bool) {
 func WithEcdsaPrivateKeyContext(v *crypto.EcdsaPrivateKey) contextx.WithContext {
 	return func(ctx context.Context) context.Context {
 		return context.WithValue(ctx, ctxEcdsaPrivateKey{}, v)
+	}
+}
+
+func CheckDeviceWhiteListFromContext(ctx context.Context, imei string) bool {
+	v, ok := ctx.Value(ctxWhiteList{}).(WhiteList)
+	if !ok {
+		return true
+	}
+	return v.NeedHandle(imei)
+}
+
+func WithWhiteListKeyContext(v WhiteList) contextx.WithContext {
+	return func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, ctxWhiteList{}, v)
 	}
 }
