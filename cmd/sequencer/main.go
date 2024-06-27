@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sort"
 
 	"github.com/gin-gonic/gin"
 	"github.com/xoctopus/confx/confapp"
@@ -114,6 +115,9 @@ func RunDebugServer(ctx context.Context) {
 		func(c *gin.Context) {
 			bc := must.BeTrueV(contexts.BlockchainFromContext(ctx))
 			monitors := bc.MonitorsInfo()
+			sort.Slice(monitors, func(i, j int) bool {
+				return monitors[i].Name < monitors[j].Name
+			})
 
 			name := c.Query("name")
 			if name == "" {

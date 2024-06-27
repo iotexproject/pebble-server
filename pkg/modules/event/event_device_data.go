@@ -111,7 +111,7 @@ func (e *DeviceData) Handle(ctx context.Context) (err error) {
 	case *pebblepb.SensorState:
 		err = e.handleState(ctx, dev, pkg)
 	case *pebblepb.SensorData:
-		err = e.handleData(ctx, dev, pkg)
+		err = e.handleSensor(ctx, dev, pkg)
 	default:
 		err = errors.Errorf("unexpected senser package type")
 	}
@@ -147,7 +147,7 @@ func (e *DeviceData) handleState(ctx context.Context, dev *models.Device, pkg *p
 	return errors.Wrapf(err, "failed to update device state: %s %d", dev.ID, dev.State)
 }
 
-func (e *DeviceData) handleData(ctx context.Context, dev *models.Device, pkg *pebblepb.SensorData) error {
+func (e *DeviceData) handleSensor(ctx context.Context, dev *models.Device, pkg *pebblepb.SensorData) error {
 	snr := float64(pkg.GetSnr())
 	if snr > 2700 {
 		snr = 100

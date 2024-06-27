@@ -4,14 +4,12 @@ import (
 	"context"
 	"encoding/binary"
 	"sort"
-	"strings"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
-	"golang.org/x/exp/maps"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
@@ -42,12 +40,6 @@ type EventHasBlockchainMeta interface {
 	EventName() string
 }
 
-func SubID(e EventHasBlockchainMeta) string {
-	return strings.Join([]string{
-		"SUB", e.ContractID(), strings.ToUpper(e.EventName()),
-	}, "__")
-}
-
 var (
 	gEventFactory map[string]func() Event
 	gByteOrder    = binary.BigEndian
@@ -72,19 +64,14 @@ func NewEvent(topic string) Event {
 	return nil
 }
 
-func Topics() []string {
-	topics := maps.Keys(gEventFactory)
-	sort.Slice(topics, func(i, j int) bool {
-		return topics[i] < topics[j]
-	})
-	return topics
-}
-
 func Events() []Event {
 	events := make([]Event, 0, len(gEventFactory))
 	for _, f := range gEventFactory {
 		events = append(events, f())
 	}
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].Topic() < events[j].Topic()
+	})
 	return events
 }
 
@@ -179,39 +166,25 @@ func StartChainEventConsuming(ctx context.Context, e Event) error {
 	v, ok := e.(EventHasBlockchainMeta)
 	must.BeTrueWrap(ok, "expect blockchain source event impl `EventHasBlockchainMeta`")
 
-	var (
-		bc = must.BeTrueV(contexts.BlockchainFromContext(ctx))
-		l  = must.BeTrueV(contexts.LoggerFromContext(ctx))
-	)
-
+	bc := must.BeTrueV(contexts.BlockchainFromContext(ctx))
 	contract := bc.ContractByID(v.ContractID())
 	if contract == nil {
 		return errors.Errorf("contract not found: [contract: %s]", v.ContractID())
 	}
-
 	monitor := bc.Monitor(v.ContractID(), v.EventName())
 	if monitor == nil {
 		return errors.Errorf("monitor not found: [contract: %s] [event: %s]", v.ContractID(), v.EventName())
 	}
 
-	subid := SubID(v)
-	sink := make(chan *types.Log, 32)
-	sub, err := monitor.Watch(blockchain.WatchOptions{SubID: subid}, sink)
+	_, err := monitor.Watch(
+		&blockchain.WatchOptions{SubID: "sprout-seq"},
+		func(sub blockchain.Subscription, tx *types.Log) {
+			_ = Handle(ctx, v.Topic(), v.Topic(), &TxEventParser{contract, tx})
+		},
+	)
 	if err != nil {
-		return errors.Wrapf(err, "failed to subscribe tx log: %s", subid)
+		return errors.Wrapf(err, "failed to subscribe tx log: %s", "sprout-seq")
 	}
 
-	go func() {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case err = <-sub.Err():
-				l.Error(err, "subscribe failed", "subtopic", SubID(v))
-				return
-			case log := <-sink:
-				_ = Handle(ctx, v.Topic(), v.Topic(), &TxEventParser{contract, log})
-			}
-		}
-	}()
 	return nil
 }

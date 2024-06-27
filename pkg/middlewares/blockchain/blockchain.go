@@ -138,7 +138,7 @@ func (bc *Blockchain) Monitor(id, name string) *Monitor {
 	}
 
 	meta := &Meta{contract.Network, contract.Address, event.event.ID}
-	return must.BeTrueV(bc.monitors.Load(meta.MetaID())).(*Monitor)
+	return must.BeTrueV(bc.monitors.Load(meta.String())).(*Monitor)
 }
 
 func (bc *Blockchain) RunMonitors() error {
@@ -157,16 +157,13 @@ func (bc *Blockchain) RunMonitors() error {
 				client:  bc.clients[c.Network],
 				persist: bc.persist,
 			}
-			if _, ok := bc.monitors.Load(monitor.Meta); ok {
+			if _, ok := bc.monitors.Load(monitor.Meta.String()); ok {
 				continue
 			}
 			if err := monitor.Init(); err != nil {
-				return errors.Wrapf(
-					err, "failed to init monitor: [network:%s] [contract:%s] [topic:%s]",
-					monitor.Network(), monitor.ContractAddress(), monitor.Topic(),
-				)
+				return errors.Wrapf(err, "failed to init monitor: %s", monitor.name)
 			}
-			bc.monitors.Store(monitor.meta, monitor)
+			bc.monitors.Store(monitor.Meta.String(), monitor)
 		}
 	}
 	return nil
@@ -185,7 +182,7 @@ type MonitorInfo struct {
 		StartedAt uint64 `json:"startedAt"`
 		Current   uint64 `json:"current"`
 	} `json:"subscribers"`
-	meta MetaID
+	meta Meta
 }
 
 func (bc *Blockchain) MonitorsInfo() []*MonitorInfo {
@@ -194,11 +191,11 @@ func (bc *Blockchain) MonitorsInfo() []*MonitorInfo {
 		m := v.(*Monitor)
 		vv := &MonitorInfo{
 			Name:     m.name,
-			Network:  m.Network(),
+			Network:  m.Meta.Network,
 			Endpoint: m.Endpoint(),
-			Contract: m.ContractAddress(),
-			Topic:    m.Topic(),
-			meta:     m.MetaID(),
+			Contract: m.Meta.Contract,
+			Topic:    m.Meta.Topic,
+			meta:     m.Meta,
 		}
 		monitors = append(monitors, vv)
 		m.subs.Range(func(key, _ any) bool {

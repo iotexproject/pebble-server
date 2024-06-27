@@ -111,11 +111,11 @@ func TestBlockchain_Init(t *testing.T) {
 			topic := common.BytesToHash(crypto.Keccak256([]byte("ProjectRegistered(uint256)")))
 			p := &Persist{Path: dir(t)}
 			r.NoError(p.Init())
-			r.NoError(p.Store(MetaRangeEndKey((&Meta{
+			r.NoError(p.Store((&Meta{
 				Network:  contract1.Network,
 				Contract: contract1.Address,
 				Topic:    topic,
-			}).MetaID()), make([]byte, 10)))
+			}).RangeEndKey(), make([]byte, 10)))
 			r.NoError(p.Close())
 
 			bc := &Blockchain{

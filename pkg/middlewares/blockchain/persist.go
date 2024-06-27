@@ -16,21 +16,23 @@ import (
 
 type TxPersistence interface {
 	// MetaRange query persisted meta range
-	MetaRange(MetaID) (uint64, uint64, error)
+	MetaRange(Meta) (uint64, uint64, error)
 	// UpdateMetaRange update persisted meta range
-	UpdateMetaRange(MetaID, uint64, uint64) error
+	UpdateMetaRange(Meta, uint64, uint64) error
 	// QueryTxByHash query tx log by tx hash and blockchain meta
-	QueryTxByHash(MetaID, common.Hash) (*types.Log, error)
+	QueryTxByHash(Meta, common.Hash) (*types.Log, error)
 	// QueryTxByHeightRange query tx logs by blockchain meta and block number range
-	QueryTxByHeightRange(MetaID, uint64, uint64) ([]*types.Log, error)
+	QueryTxByHeightRange(Meta, uint64, uint64) ([]*types.Log, error)
 	// QueryTxByHeight query tx logs by blockchain meta and block number range
-	QueryTxByHeight(MetaID, uint64) ([]*types.Log, error)
+	QueryTxByHeight(Meta, uint64) ([]*types.Log, error)
 	// InsertLogs insert tx logs with blockchain meta
-	InsertLogs(MetaID, ...*types.Log) error
+	InsertLogs(Meta, ...*types.Log) error
 	// QueryWatcher query watcher state by meta id and subscriber id
-	QueryWatcher(MetaID, string) (uint64, uint64, error)
+	QueryWatcher(Meta, string) (uint64, uint64, error)
 	// UpdateWatcher update watcher state
-	UpdateWatcher(MetaID, string, uint64, uint64) error
+	UpdateWatcher(Meta, string, uint64, uint64) error
+	// RemoveWatcher remove watcher state
+	RemoveWatcher(Meta, string) error
 	// Close
 	Close() error
 }
@@ -263,63 +265,63 @@ func (p *Persist) LoadTextValue(k []byte, v any) error {
 	return textx.UnmarshalText(data, v)
 }
 
-func (p *Persist) MetaRange(meta MetaID) (from uint64, end uint64, err error) {
-	from, err = p.GetUint64(MetaRangeFromKey(meta))
+func (p *Persist) MetaRange(meta Meta) (from uint64, end uint64, err error) {
+	from, err = p.GetUint64(meta.RangeFromKey())
 	if err != nil {
 		return
 	}
-	end, err = p.GetUint64(MetaRangeEndKey(meta))
+	end, err = p.GetUint64(meta.RangeEndKey())
 	if err != nil {
 		return
 	}
 	return from, end, nil
 }
 
-func (p *Persist) UpdateMetaRange(meta MetaID, from, end uint64) error {
-	if err := p.SetUint64(MetaRangeFromKey(meta), from); err != nil {
+func (p *Persist) UpdateMetaRange(meta Meta, from, end uint64) error {
+	if err := p.SetUint64(meta.RangeFromKey(), from); err != nil {
 		return err
 	}
-	return p.SetUint64(MetaRangeEndKey(meta), end)
+	return p.SetUint64(meta.RangeEndKey(), end)
 }
 
-func (p *Persist) QueryTxByHeightRange(meta MetaID, from, to uint64) ([]*types.Log, error) {
+// QueryTxByHeightRange query tx logs the block number between from and to [from,to]
+func (p *Persist) QueryTxByHeightRange(meta Meta, from, to uint64) ([]*types.Log, error) {
 	must.BeTrueWrap(from <= to, "assertion range start less than end")
+
+	iter, err := p.db.NewIter(&pebble.IterOptions{
+		LowerBound: meta.BlockKeyPrefixLowerBound(from),
+		UpperBound: meta.BlockKeyPrefixLowerBound(to + 1),
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	logs := make([]*types.Log, 0)
-	for i := from; i <= to; i++ {
-		_logs, err := p.QueryTxByHeight(meta, i)
-		if err != nil {
+	for iter.First(); iter.Valid(); iter.Next() {
+		log := &types.Log{}
+		key := iter.Key()
+		if err = p.LoadJSONValue(key, log); err != nil {
 			return nil, err
 		}
-		logs = append(logs, _logs...)
+		logs = append(logs, log)
 	}
+
 	return logs, nil
 }
 
-func (p *Persist) QueryTxByHash(meta MetaID, tx common.Hash) (*types.Log, error) {
+func (p *Persist) QueryTxByHash(meta Meta, tx common.Hash) (*types.Log, error) {
 	log := &types.Log{}
-	if err := p.LoadJSONValue(TxHashKey(meta, tx), log); err != nil {
+	if err := p.LoadJSONValue(meta.TxHashKey(tx), log); err != nil {
 		return nil, err
 	}
 	return log, nil
 }
 
-func (p *Persist) QueryTxByHeight(meta MetaID, blk uint64) ([]*types.Log, error) {
-	lowerBound := BlockKeyPrefix(meta, blk)
-	upperbound := func(b []byte) []byte {
-		end := make([]byte, len(b))
-		copy(end, b)
-		for i := len(end) - 1; i >= 0; i-- {
-			end[i] = end[i] + 1
-			if end[i] != 0 {
-				return end[:i+1]
-			}
-		}
-		return nil // no upper-bound
-	}(lowerBound)
+func (p *Persist) QueryTxByHeight(meta Meta, blk uint64) ([]*types.Log, error) {
 	iter, err := p.db.NewIter(&pebble.IterOptions{
-		LowerBound: lowerBound,
-		UpperBound: upperbound},
-	)
+		LowerBound: meta.BlockKeyPrefixLowerBound(blk),
+		UpperBound: meta.BlockKeyPrefixUpperBound(blk),
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +330,8 @@ func (p *Persist) QueryTxByHeight(meta MetaID, blk uint64) ([]*types.Log, error)
 	logs := make([]*types.Log, 0)
 	for iter.First(); iter.Valid(); iter.Next() {
 		log := &types.Log{}
-		if err = p.LoadJSONValue(iter.Key(), log); err != nil {
+		key := iter.Key()
+		if err = p.LoadJSONValue(key, log); err != nil {
 			return nil, err
 		}
 		logs = append(logs, log)
@@ -336,7 +339,7 @@ func (p *Persist) QueryTxByHeight(meta MetaID, blk uint64) ([]*types.Log, error)
 	return logs, nil
 }
 
-func (p *Persist) InsertLogs(meta MetaID, logs ...*types.Log) error {
+func (p *Persist) InsertLogs(meta Meta, logs ...*types.Log) error {
 	_, end, err := p.MetaRange(meta)
 	if err != nil {
 		return err
@@ -356,9 +359,9 @@ func (p *Persist) InsertLogs(meta MetaID, logs ...*types.Log) error {
 		}
 		kvs = append(kvs,
 			// LOG_$(META)$(TX): LOG DATA
-			[2][]byte{TxHashKey(meta, log.TxHash), data},
+			[2][]byte{meta.TxHashKey(log.TxHash), data},
 			// BLK_$(META)$(BLK)$(TX): LOG DATA
-			[2][]byte{BlockKey(meta, log.TxHash, log.BlockNumber), data},
+			[2][]byte{meta.BlockKey(log), data},
 		)
 
 		if log.BlockNumber > end {
@@ -370,131 +373,36 @@ func (p *Persist) InsertLogs(meta MetaID, logs ...*types.Log) error {
 	if highest != 0 {
 		blk := [8]byte{}
 		gByteOrder.PutUint64(blk[:], highest)
-		kvs = append(kvs, [2][]byte{MetaRangeEndKey(meta), blk[:]})
+		kvs = append(kvs, [2][]byte{meta.RangeEndKey(), blk[:]})
 	}
 
 	return p.BatchSet(kvs...)
 }
 
-func (p *Persist) QueryWatcher(meta MetaID, id string) (uint64, uint64, error) {
-	key := MetaSubKey(meta, id)
-	val, err := p.Load(key)
+func (p *Persist) QueryWatcher(meta Meta, id string) (uint64, uint64, error) {
+	from, err := p.GetUint64(meta.WatcherFromKey(id))
 	if err != nil {
 		return 0, 0, err
 	}
-	if len(val) != 16 {
-		return 0, 0, errors.Errorf(
-			"expect meta sub key value length is 16 but got %d key: %s",
-			len(val), hex.EncodeToString(key),
-		)
+	end, err := p.GetUint64(meta.WatcherEndKey(id))
+	if err != nil {
+		return 0, 0, err
 	}
-	return gByteOrder.Uint64(val[0:8]), gByteOrder.Uint64(val[8:16]), nil
+	return from, end, nil
 }
 
-func (p *Persist) UpdateWatcher(meta MetaID, id string, start, current uint64) error {
-	key := MetaSubKey(meta, id)
-	val := [16]byte{}
-	gByteOrder.PutUint64(val[0:8], start)
-	gByteOrder.PutUint64(val[8:16], current)
-	return p.Store(key, val[:])
+func (p *Persist) UpdateWatcher(meta Meta, id string, from, end uint64) error {
+	if err := p.SetUint64(meta.WatcherFromKey(id), from); err != nil {
+		return err
+	}
+	return p.SetUint64(meta.WatcherEndKey(id), end)
 }
 
-func TxHashKey(meta MetaID, tx common.Hash) []byte {
-	key := make([]byte, HashKeyLength)
-	offset := 0
-	copy(key, _LOG)
-	offset += 4
-	copy(key[offset:], meta.Bytes())
-	offset += MetaIDLength
-	copy(key[offset:], tx.Bytes())
-	offset += common.HashLength
-
-	must.BeTrue(offset == HashKeyLength)
-	return key
+func (p *Persist) RemoveWatcher(meta Meta, id string) error {
+	if err := p.Delete(meta.WatcherFromKey(id)); err != nil {
+		return err
+	}
+	return p.Delete(meta.WatcherEndKey(id))
 }
 
-func BlockKey(meta MetaID, tx common.Hash, blk uint64) []byte {
-	key := make([]byte, BlockKeyLength)
-	offset := 0
-	copy(key, _BLK)
-	offset += 4
-	copy(key[offset:], meta.Bytes())
-	offset += MetaIDLength
-	gByteOrder.PutUint64(key[offset:], blk)
-	offset += 8
-	copy(key[offset:], tx.Bytes())
-	offset += common.HashLength
-
-	must.BeTrue(offset == BlockKeyLength)
-	return key
-}
-
-func BlockKeyPrefix(meta MetaID, blk uint64) []byte {
-	key := make([]byte, BlockKeyPrefixLength)
-	offset := 0
-	copy(key, _BLK)
-	offset += 4
-	copy(key[offset:], meta.Bytes())
-	offset += MetaIDLength
-	gByteOrder.PutUint64(key[offset:], blk)
-	offset += 8
-
-	must.BeTrue(offset == BlockKeyPrefixLength)
-	return key
-}
-
-func MetaRangeFromKey(meta MetaID) []byte {
-	key := make([]byte, MetaRangeKeyLength)
-	offset := 0
-	copy(key, _RL)
-	offset += 4
-	copy(key[offset:], meta.Bytes())
-	offset += MetaIDLength
-
-	must.BeTrue(offset == MetaRangeKeyLength)
-	return key
-}
-
-func MetaRangeEndKey(meta MetaID) []byte {
-	key := make([]byte, MetaRangeKeyLength)
-	offset := 0
-	copy(key, _RH)
-	offset += 4
-	copy(key[offset:], meta.Bytes())
-	offset += MetaIDLength
-
-	must.BeTrue(offset == MetaRangeKeyLength)
-	return key
-}
-
-func MetaSubKey(meta MetaID, sub string) []byte {
-	length := len(_SUB) + MetaIDLength + len(sub)
-	key := make([]byte, length)
-	offset := 0
-	copy(key, _SUB)
-	offset += 4
-	copy(key[offset:], meta.Bytes())
-	offset += MetaIDLength
-	copy(key[offset:], sub)
-	offset += len(sub)
-
-	must.BeTrue(offset == length)
-	return key
-}
-
-var (
-	_LOG = []byte("LOG_")
-	_BLK = []byte("BLK_")
-	_RL  = []byte("RNL_")
-	_RH  = []byte("RNH_")
-	_SUB = []byte("SUB_")
-
-	gByteOrder = binary.BigEndian
-)
-
-const (
-	HashKeyLength        = 4 + MetaIDLength + common.HashLength
-	BlockKeyLength       = 4 + MetaIDLength + 8 + common.HashLength
-	BlockKeyPrefixLength = 4 + MetaIDLength + 8
-	MetaRangeKeyLength   = 4 + MetaIDLength
-)
+var gByteOrder = binary.BigEndian

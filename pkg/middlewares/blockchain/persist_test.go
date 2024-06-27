@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/cockroachdb/pebble"
+	"github.com/cockroachdb/pebble/vfs"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
@@ -20,34 +21,11 @@ import (
 	. "github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
 )
 
-var (
-	meta = MetaID{}
-	log  = &types.Log{BlockNumber: 1, TxHash: common.MaxHash}
-)
-
 func dir(t *testing.T) string {
 	path := filepath.Join(os.TempDir(), t.Name())
 	must.NoError(os.RemoveAll(path))
 	must.NoError(os.MkdirAll(path, 0777))
 	return path
-}
-
-func TestKeys(t *testing.T) {
-	r := require.New(t)
-
-	block := [8]byte{}
-	binary.BigEndian.PutUint64(block[:], log.BlockNumber)
-
-	key := BlockKey(meta, log.TxHash, log.BlockNumber)
-	expect := append([]byte("BLK_"), append(meta.Bytes(), append(block[:], log.TxHash.Bytes()...)...)...)
-	r.Equal(key, expect)
-
-	key = BlockKeyPrefix(meta, log.BlockNumber)
-	r.Equal(key, expect[0:BlockKeyPrefixLength])
-
-	key = TxHashKey(meta, log.TxHash)
-	expect = append([]byte("LOG_"), append(meta.Bytes(), log.TxHash.Bytes()...)...)
-	r.Equal(key, expect)
 }
 
 func TestPersist_Init(t *testing.T) {
@@ -72,7 +50,7 @@ func TestPersist_Insert(t *testing.T) {
 	r.NoError(p.Init())
 	defer p.Close()
 
-	meta := &Meta{
+	meta := Meta{
 		Network:  NETWORK__IOTX_TESTNET,
 		Contract: common.HexToAddress("any"),
 		Topic:    common.BytesToHash([]byte("any")),
@@ -97,9 +75,9 @@ func TestPersist_Insert(t *testing.T) {
 			TxHash:      common.BytesToHash([]byte("logs2")),
 		},
 	}
-	err := p.InsertLogs(meta.MetaID(), logs...)
+	err := p.InsertLogs(meta, logs...)
 	r.NoError(err)
-	from, end, err := p.MetaRange(meta.MetaID())
+	from, end, err := p.MetaRange(meta)
 	r.NoError(err)
 	r.Equal(from, uint64(0))
 	r.Equal(end, uint64(102))
@@ -110,8 +88,8 @@ func TestPersist_Insert(t *testing.T) {
 		BlockNumber: 99,
 		TxHash:      common.BytesToHash([]byte("lower")),
 	}
-	r.NoError(p.InsertLogs(meta.MetaID(), lower))
-	from, end, err = p.MetaRange(meta.MetaID())
+	r.NoError(p.InsertLogs(meta, lower))
+	from, end, err = p.MetaRange(meta)
 	r.NoError(err)
 	r.Equal(from, uint64(0))
 	r.Equal(end, uint64(102))
@@ -122,8 +100,8 @@ func TestPersist_Insert(t *testing.T) {
 		BlockNumber: 150,
 		TxHash:      common.BytesToHash([]byte("lower")),
 	}
-	r.NoError(p.InsertLogs(meta.MetaID(), higher))
-	from, end, err = p.MetaRange(meta.MetaID())
+	r.NoError(p.InsertLogs(meta, higher))
+	from, end, err = p.MetaRange(meta)
 	r.NoError(err)
 	r.Equal(from, uint64(0))
 	r.Equal(end, higher.BlockNumber)
@@ -181,7 +159,7 @@ func TestPersist_Queries(t *testing.T) {
 	r.NoError(p.Init())
 	defer p.Close()
 
-	meta := &Meta{
+	meta := Meta{
 		Network:  NETWORK__IOTX_TESTNET,
 		Contract: common.HexToAddress("any"),
 		Topic:    common.BytesToHash([]byte("any")),
@@ -217,29 +195,29 @@ func TestPersist_Queries(t *testing.T) {
 		},
 	}
 
-	err := p.InsertLogs(meta.MetaID(), logs...)
+	err := p.InsertLogs(meta, logs...)
 	r.NoError(err)
 
 	t.Run("QueryTxByHash", func(t *testing.T) {
-		l, err := p.QueryTxByHash(meta.MetaID(), logs[0].TxHash)
+		l, err := p.QueryTxByHash(meta, logs[0].TxHash)
 		r.NoError(err)
 		r.Equal(*l, *logs[0])
 
-		l, err = p.QueryTxByHash(meta.MetaID(), logs[1].TxHash)
+		l, err = p.QueryTxByHash(meta, logs[1].TxHash)
 		r.NoError(err)
 		r.Equal(*l, *logs[1])
 
-		l, err = p.QueryTxByHash(meta.MetaID(), logs[2].TxHash)
+		l, err = p.QueryTxByHash(meta, logs[2].TxHash)
 		r.NoError(err)
 		r.Equal(*l, *logs[2])
 		t.Run("NotFound", func(t *testing.T) {
-			l, err = p.QueryTxByHash(meta.MetaID(), common.BytesToHash([]byte("not found")))
+			l, err = p.QueryTxByHash(meta, common.BytesToHash([]byte("not found")))
 			r.ErrorIs(err, pebble.ErrNotFound)
 		})
 	})
 
 	t.Run("QueryTxByHeight", func(t *testing.T) {
-		_logs, err := p.QueryTxByHeight(meta.MetaID(), 102)
+		_logs, err := p.QueryTxByHeight(meta, 102)
 		r.NoError(err)
 		r.Len(_logs, 2)
 		r.Equal(*_logs[0], *logs[2])
@@ -249,20 +227,51 @@ func TestPersist_Queries(t *testing.T) {
 				t.Log("patched")
 				return nil, errors.New(t.Name())
 			})
-			logs, err := p.QueryTxByHeight(meta.MetaID(), 102)
+			logs, err := p.QueryTxByHeight(meta, 102)
 			r.Nil(logs)
 			r.ErrorContains(err, t.Name())
 		})
 	})
 
 	t.Run("QueryTxByHeightRange", func(t *testing.T) {
-		_logs, err := p.QueryTxByHeightRange(meta.MetaID(), 0, 102)
+		_logs, err := p.QueryTxByHeightRange(meta, 0, 102)
 		r.NoError(err)
 		r.Len(_logs, 4)
 		r.Equal(*_logs[0], *logs[0])
 		r.Equal(*_logs[1], *logs[1])
 		r.Equal(*_logs[2], *logs[2])
 		r.Equal(*_logs[3], *logs[3])
+	})
+
+	t.Run("QueryByRange", func(t *testing.T) {
+		db, err := pebble.Open("", &pebble.Options{FS: vfs.NewMem()})
+		r.NoError(err)
+
+		defer db.Close()
+
+		bat := db.NewBatch()
+		defer bat.Close()
+		r.NoError(bat.Set([]byte("key1"), []byte("value1"), pebble.Sync))
+		r.NoError(bat.Set([]byte("key2"), []byte("value2"), pebble.Sync))
+		r.NoError(bat.Set([]byte("key3"), []byte("value3"), pebble.Sync))
+		r.NoError(bat.Set([]byte("key4"), []byte("value4"), pebble.Sync))
+		r.NoError(bat.Set([]byte("key5"), []byte("value5"), pebble.Sync))
+		r.NoError(bat.Set([]byte("key6"), []byte("value6"), pebble.Sync))
+		r.NoError(bat.Set([]byte("key7"), []byte("value7"), pebble.Sync))
+
+		r.NoError(bat.Commit(pebble.Sync))
+
+		iter, err := db.NewIter(&pebble.IterOptions{
+			LowerBound: []byte("key3"),
+			UpperBound: []byte("key5"),
+		})
+		r.NoError(err)
+		defer iter.Close()
+
+		for iter.First(); iter.Valid(); iter.Next() {
+			t.Log(string(iter.Key()))
+		}
+		// expect output `key3` and `key4`
 	})
 }
 
@@ -392,13 +401,14 @@ func TestPersist_QueryAndUpdateWatcher(t *testing.T) {
 	r.NoError(p.Init())
 	defer p.Close()
 
-	meta := (&Meta{
+	meta := Meta{
 		Network:  NETWORK__IOTX_TESTNET,
 		Contract: common.Address{},
 		Topic:    common.Hash{},
-	}).MetaID()
-	_, _, err := p.QueryWatcher(meta, "sub")
-	r.ErrorIs(err, pebble.ErrNotFound)
+	}
+	from, end, err := p.QueryWatcher(meta, "sub")
+	r.Equal(from, uint64(0))
+	r.Equal(end, uint64(0))
 
 	start, current := uint64(1000), uint64(1009)
 	err = p.UpdateWatcher(meta, "sub", start, current)
