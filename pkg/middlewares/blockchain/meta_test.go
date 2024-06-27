@@ -31,6 +31,7 @@ func TestMonitorMeta(t *testing.T) {
 		r.Equal(mm.Contract, contract)
 		r.Equal(mm.Topic, topic)
 		r.Equal(mm.MetaID().Bytes(), ser)
+		r.Equal(mm.Bytes(), ser)
 		r.Equal(mm.MetaID().String(), hex.EncodeToString(ser))
 
 		t.Run("ComparingMarshalResult", func(t *testing.T) {

@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"sync"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
@@ -113,7 +112,6 @@ func (bc *Blockchain) Close() {
 			v.(*Monitor).Stop()
 			return true
 		})
-		time.Sleep(500 * time.Millisecond)
 		bc.persist.Close()
 	})
 }

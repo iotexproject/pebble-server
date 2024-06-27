@@ -3,6 +3,7 @@ package event
 import (
 	"context"
 	"encoding/binary"
+	"fmt"
 	"sort"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -12,6 +13,7 @@ import (
 	"github.com/xoctopus/x/misc/must"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/alert"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
 )
 
@@ -176,7 +178,7 @@ func StartChainEventConsuming(ctx context.Context, e Event) error {
 		return errors.Errorf("monitor not found: [contract: %s] [event: %s]", v.ContractID(), v.EventName())
 	}
 
-	_, err := monitor.Watch(
+	sub, err := monitor.Watch(
 		&blockchain.WatchOptions{SubID: "sprout-seq"},
 		func(sub blockchain.Subscription, tx *types.Log) {
 			_ = Handle(ctx, v.Topic(), v.Topic(), &TxEventParser{contract, tx})
@@ -186,5 +188,15 @@ func StartChainEventConsuming(ctx context.Context, e Event) error {
 		return errors.Wrapf(err, "failed to subscribe tx log: %s", "sprout-seq")
 	}
 
+	nc, _ := contexts.LarkAlertFromContext(ctx)
+	if nc != nil && !nc.IsZero() {
+		go func(nc *alert.LarkAlert, sub blockchain.Subscription, m *blockchain.Monitor) {
+			err := <-sub.Err()
+			_ = nc.Push(
+				"chain subscriber stopped",
+				fmt.Sprintf("\nmonitor: %s\nsubscriber: %s\n%v", m.Name(), sub.ID(), err),
+			)
+		}(nc, sub, monitor)
+	}
 	return nil
 }

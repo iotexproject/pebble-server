@@ -7,6 +7,7 @@ import (
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
 
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/alert"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/crypto"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
@@ -23,6 +24,7 @@ type (
 	ctxProjectVersion  struct{}
 	ctxEcdsaPrivateKey struct{}
 	ctxWhiteList       struct{}
+	ctxLarkAlert       struct{}
 )
 
 func LoggerFromContext(ctx context.Context) (*logger.Logger, bool) {
@@ -136,5 +138,16 @@ func CheckDeviceWhiteListFromContext(ctx context.Context, imei string) bool {
 func WithWhiteListKeyContext(v WhiteList) contextx.WithContext {
 	return func(ctx context.Context) context.Context {
 		return context.WithValue(ctx, ctxWhiteList{}, v)
+	}
+}
+
+func LarkAlertFromContext(ctx context.Context) (*alert.LarkAlert, bool) {
+	v, ok := ctx.Value(ctxLarkAlert{}).(*alert.LarkAlert)
+	return v, ok
+}
+
+func WithLarkAlertContext(v *alert.LarkAlert) contextx.WithContext {
+	return func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, ctxLarkAlert{}, v)
 	}
 }

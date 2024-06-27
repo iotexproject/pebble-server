@@ -141,6 +141,7 @@ func TestBlockchain_Init(t *testing.T) {
 
 	t.Run("Success", func(t *testing.T) {
 		r.NoError(bc.Init())
+		defer bc.Close()
 		r.NotNil(bc.ClientByNetwork())
 		r.NotNil(bc.ContractByID("SproutProjectRegistrar"))
 		r.NotNil(bc.Monitor("SproutProjectRegistrar", "ProjectRegistered"))

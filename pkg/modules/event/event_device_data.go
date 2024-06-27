@@ -96,9 +96,10 @@ func (e *DeviceData) Handle(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to fetch dev: %s", dev.ID)
 	}
 
-	if dev.Status != models.CONFIRM {
-		return errors.Errorf("require deivce confirmed(2), but got %d", dev.Status)
-	}
+	// TODO need ?
+	// if dev.Status != models.CONFIRM {
+	// 	return errors.Errorf("require deivce confirmed(2), but got %d", dev.Status)
+	// }
 
 	e.addr = common.HexToAddress(dev.Address)
 	if !e.Validate() {

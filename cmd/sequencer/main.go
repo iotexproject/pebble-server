@@ -16,6 +16,7 @@ import (
 
 	"github.com/machinefi/sprout-pebble-sequencer/cmd/sequencer/commands"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/alert"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/crypto"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
@@ -40,6 +41,7 @@ var (
 		ProjectID      uint64
 		ProjectVersion string
 		WhiteList      contexts.WhiteList
+		LarkAlert      *alert.LarkAlert
 	}{
 		Logger:     &logger.Logger{Level: slog.LevelDebug},
 		Blockchain: &blockchain.Blockchain{Contracts: contracts},
@@ -48,6 +50,11 @@ var (
 		// from sprout default sequencer, to make coordinator validate sequencer signature
 		PrivateKey: &crypto.EcdsaPrivateKey{
 			Hex: "dbfe03b0406549232b8dccc04be8224fcc0afa300a33d4f335dcfdfead861c85",
+		},
+		LarkAlert: &alert.LarkAlert{
+			Env:     "PROD",
+			Project: Name,
+			Version: Version,
 		},
 		// WhiteList: contexts.WhiteList{"103381234567407"},
 	}
@@ -83,6 +90,7 @@ func init() {
 		contexts.WithProjectVersionContext(config.ProjectVersion),
 		contexts.WithEcdsaPrivateKeyContext(config.PrivateKey),
 		contexts.WithWhiteListKeyContext(config.WhiteList),
+		contexts.WithLarkAlertContext(config.LarkAlert),
 	)(context.Background())
 
 	app.AddCommand(commands.Migrate(ctx))

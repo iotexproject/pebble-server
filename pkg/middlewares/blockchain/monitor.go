@@ -129,6 +129,10 @@ func (m *Monitor) Endpoint() string {
 	return m.client.ChainEndpoint()
 }
 
+func (m *Monitor) Name() string {
+	return m.name
+}
+
 func (m *Monitor) run(ctx context.Context) {
 	filter := ethereum.FilterQuery{
 		Addresses: []common.Address{m.Meta.Contract},

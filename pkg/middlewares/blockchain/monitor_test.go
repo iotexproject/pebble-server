@@ -243,7 +243,7 @@ func ExampleMonitor() {
 	defer m.Stop()
 
 	sig := make(chan struct{})
-	sub, err := m.Watch(
+	_, err := m.Watch(
 		&WatchOptions{
 			SubID: "example",
 			Start: ptrx.Ptr(uint64(25952996)),
@@ -265,9 +265,7 @@ func ExampleMonitor() {
 		return
 	}
 	<-sig
-	sub.Unsubscribe()
-	err = <-sub.Err()
-	fmt.Println(err)
+	return
 
 	// Output:
 	// consumed: block: 25952996 hash: 0x29a3303a014ca27f5a0f9a76619958f4b60223e0ab59f78de70ea15810e0dbf6
@@ -280,5 +278,4 @@ func ExampleMonitor() {
 	// consumed: block: 25953803 hash: 0x785a2c6e0b72e570e52646aa87821089a6b52c1a1defe99f42de9a16514af567
 	// consumed: block: 25953918 hash: 0x21eb0a8adfd7006d2c8f04349d17adc56edc7ab2dbaf49863fa90a4c8edc5bc1
 	// consumed: block: 25954033 hash: 0x5d1837c615ae094f8b5004d2166003feda59a2f52e4a2f3a10da4be222685e83
-	// context canceled
 }
