@@ -3,12 +3,9 @@ package main
 import (
 	"context"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
-	"sort"
 
-	"github.com/gin-gonic/gin"
 	"github.com/xoctopus/confx/confapp"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
@@ -99,6 +96,9 @@ func init() {
 
 // Main app main entry
 func Main() error {
+	_ = config.LarkAlert.Push("service started", "")
+
+	blockchain.SetLogger(config.Logger)
 	if err := config.Blockchain.RunMonitors(); err != nil {
 		config.Logger.Error(err, "failed to start tx monitor")
 	}
@@ -111,50 +111,8 @@ func Main() error {
 	signal.Notify(sig, os.Interrupt)
 	_ = <-sig
 
+	config.LarkAlert.Push("service stopped", "")
 	return nil
-}
-
-// RunDebugServer enable simple http server for debugging
-func RunDebugServer(ctx context.Context) {
-	// addr := contexts.ServerAddrFromContext(ctx)
-	eng := gin.Default()
-	eng.Handle(
-		http.MethodGet, "/debug/monitor-info",
-		func(c *gin.Context) {
-			bc := must.BeTrueV(contexts.BlockchainFromContext(ctx))
-			monitors := bc.MonitorsInfo()
-			sort.Slice(monitors, func(i, j int) bool {
-				return monitors[i].Name < monitors[j].Name
-			})
-
-			name := c.Query("name")
-			if name == "" {
-				c.JSON(http.StatusOK, monitors)
-				return
-			} else {
-				for _, m := range monitors {
-					if m.Name == name {
-						c.JSON(http.StatusOK, m)
-						return
-					}
-				}
-			}
-			c.Status(http.StatusNotFound)
-		},
-	)
-	eng.Handle(
-		http.MethodGet, "/version",
-		func(c *gin.Context) {
-			c.JSON(http.StatusOK, map[string]string{
-				"service_name": Name,
-				"feature":      Feature,
-				"version":      Version,
-				"commit_id":    CommitID,
-				"build_at":     Date,
-			})
-		},
-	)
-	eng.Run(":80")
 }
 
 func main() {

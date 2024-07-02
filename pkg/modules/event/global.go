@@ -192,6 +192,9 @@ func StartChainEventConsuming(ctx context.Context, e Event) error {
 	if nc != nil && !nc.IsZero() {
 		go func(nc *alert.LarkAlert, sub blockchain.Subscription, m *blockchain.Monitor) {
 			err := <-sub.Err()
+			if errors.Is(err, context.Canceled) {
+				return
+			}
 			_ = nc.Push(
 				"chain subscriber stopped",
 				fmt.Sprintf("\nmonitor: %s\nsubscriber: %s\n%v", m.Name(), sub.ID(), err),

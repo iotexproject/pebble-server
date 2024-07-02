@@ -78,7 +78,7 @@ PEBBLE_SEQUENCER__LarkAlert_Env: PROD
 PEBBLE_SEQUENCER__LarkAlert_Project: pebble-sequencer
 PEBBLE_SEQUENCER__LarkAlert_Secret: ""
 PEBBLE_SEQUENCER__LarkAlert_URL: ""
-PEBBLE_SEQUENCER__LarkAlert_Version: v0.1.2
+PEBBLE_SEQUENCER__LarkAlert_Version: v0.1.5
 PEBBLE_SEQUENCER__Logger_Level: DEBUG
 PEBBLE_SEQUENCER__MqttBroker_Cert_CA: ""
 PEBBLE_SEQUENCER__MqttBroker_Cert_Crt: ""
