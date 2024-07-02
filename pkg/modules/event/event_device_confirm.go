@@ -93,6 +93,11 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to fetch dev: %s", dev.ID)
 	}
 
+	needhandled := contexts.CheckDeviceWhiteListFromContext(ctx, dev.ID)
+	if !needhandled {
+		return nil
+	}
+
 	if dev.Status != models.PROPOSAL {
 		return errors.Errorf("device `%s` is %d, donnot need confirm", dev.ID, dev.Status)
 	}
