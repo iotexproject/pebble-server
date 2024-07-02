@@ -2,7 +2,8 @@ package models
 
 type DeviceRecord struct {
 	ID            string `gorm:"primary_key"`
-	Imei          string `gorm:"not null"`
+	Hash          string
+	Imei          string `gorm:"index:device_record_imei;not null"`
 	Operator      string `gorm:"not null"`
 	Snr           string `gorm:"not null;type:numeric(10,2);default:0"`
 	Vbat          string `gorm:"not null;type:numeric(10,2);default:0"`
@@ -17,7 +18,7 @@ type DeviceRecord struct {
 	Latitude      string `gorm:"not null;default:0"`
 	Longitude     string `gorm:"not null;default:0"`
 	Signature     string `gorm:"not null;default:''"`
-	Timestamp     int64  `gorm:"not null;default:0"`
+	Timestamp     int64  `gorm:"index:device_record_timestamp;not null;default:0"`
 
 	OperationTimes
 }

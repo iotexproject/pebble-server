@@ -1,0 +1,29 @@
+version: "3.6"
+
+services:
+  mqtt:
+    image: eclipse-mosquitto:1.6.15
+    container_name: mosquitto
+    restart: always
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./build/mqtt-dep:/mosquitto/data
+
+  postgres:
+    image: postgres:13
+    restart: always
+    command:
+      [
+        "postgres",
+        "-cshared_preload_libraries=pg_stat_statements",
+        "-cstats_temp_directory=/tmp"
+      ]
+    environment:
+      POSTGRES_USER: "test"
+      POSTGRES_PASSWORD: "passwd"
+      POSTGRES_DB: "pebble"
+    volumes:
+      - ./build/postgres-dep:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"

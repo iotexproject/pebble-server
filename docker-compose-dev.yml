@@ -8,7 +8,7 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./build/mqtt:/mosquitto/data
+      - ./build/mqtt-dev:/mosquitto/data
 
   postgres:
     image: postgres:13
@@ -16,22 +16,20 @@ services:
     command:
       [
         "postgres",
-        "-cshared_preload_libraries=pg_stat_statements"
+        "-cshared_preload_libraries=pg_stat_statements",
+        "-cstats_temp_directory=/tmp"
       ]
     environment:
       POSTGRES_USER: "test"
       POSTGRES_PASSWORD: "passwd"
       POSTGRES_DB: "pebble"
     volumes:
-      - ./build/postgres:/var/lib/postgresql/data
+      - ./build/postgres-dev:/var/lib/postgresql/data
     ports:
       - "5432:5432"
 
   pebble-sequencer:
-    # build:
-    #   context: .
-    #   dockerfile: ./cmd/sequencer/Dockerfile
-    image: ghcr.io/machinefi/pebble-sequencer:main
+    image: ghcr.io/machinefi/pebble-sequencer:latest
     container_name: pebble-sequencer
     platform: linux/amd64
     restart: always
@@ -50,5 +48,5 @@ services:
       PEBBLE_SEQUENCER__ProjectVersion: v0.0.1
       PEBBLE_SEQUENCER__Blockchain_Network: IOTX_TESTNET
     volumes:
-      - ./build/sequencer:/data
+      - ./build/tx-dev:/data
 
