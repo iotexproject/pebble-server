@@ -51,6 +51,7 @@ func (e *PebbleRemove) Handle(ctx context.Context) (err error) {
 			e.Imei, dev.Owner, e.Owner.String(),
 		)
 	}
+	dev.Owner = ""
 	if dev.Status == models.CONFIRM {
 		dev.Status = models.CREATED
 	}
