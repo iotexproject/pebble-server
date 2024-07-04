@@ -1,10 +1,11 @@
 package blockchain_test
 
 import (
-	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
@@ -12,38 +13,87 @@ import (
 
 func TestMonitorMeta(t *testing.T) {
 	var (
-		network  = [4]byte{1, 2, 3, 4}
-		contract = common.MaxAddress
-		topic    = common.Hash{}
-		ser      = append(network[:], append(contract[:], topic[:]...)...)
+		network   = blockchain.NETWORK__IOTX_TESTNET
+		contracts = []*blockchain.Contract{
+			{
+				ID:      "any",
+				Network: blockchain.NETWORK__IOTX_TESTNET,
+				Address: common.HexToAddress("0x6AfCB0EB71B7246A68Bb9c0bFbe5cD7c11c4839f"),
+				Events:  []*blockchain.Event{{Name: "ProjectConfigUpdated", ABI: ProjectConfigUpdatedABI}},
+			},
+			{
+				ID:      "any2",
+				Network: blockchain.NETWORK__IOTX_MAINNET,
+			},
+		}
 	)
-
 	r := require.New(t)
 
-	t.Run("AssertMonitorMetaIDLength", func(t *testing.T) {
-		r.Equal(len(network)+len(contract)+len(topic), blockchain.MetaIDLength)
-		r.Equal(len(ser), blockchain.MetaIDLength)
-	})
+	r.NoError(contracts[0].Init())
 
-	t.Run("ParseMonitorMeta", func(t *testing.T) {
-		mm, err := blockchain.ParseMonitorMeta(ser)
-		r.NoError(err)
-		r.Equal(mm.Contract, contract)
-		r.Equal(mm.Topic, topic)
-		r.Equal(mm.MetaID().Bytes(), ser)
-		r.Equal(mm.Bytes(), ser)
-		r.Equal(mm.MetaID().String(), hex.EncodeToString(ser))
+	meta := blockchain.NewMeta(network, contracts...)
 
-		t.Run("ComparingMarshalResult", func(t *testing.T) {
-			ser2, err := mm.MarshalText()
-			r.NoError(err)
-			r.Equal(ser, ser2)
-		})
+	r.Len(meta.Contracts, 1)
 
-		t.Run("InvalidParseDataLength", func(t *testing.T) {
-			mm, err = blockchain.ParseMonitorMeta(ser[:blockchain.MetaIDLength-1])
-			r.Nil(mm)
-			r.Error(err)
-		})
-	})
+	s := meta.String()
+	lk := string(meta.MonitorRangeFromKey())
+	r.Equal(lk, "RNL_"+s)
+	hk := string(meta.MonitorRangeEndKey())
+	r.Equal(hk, "RNH_"+s)
+	t.Log(string(meta.WatcherRangeFromKey("abc")))
+	t.Log(string(meta.WatcherRangeEndKey("abc")))
+	t.Log(string(meta.BlockKeyPrefixLowerBound(100)))
+	t.Log(string(meta.BlockKeyPrefixUpperBound(100)))
+	t.Log(string(meta.LogKey(&types.Log{
+		Address:     common.HexToAddress("0x0000000000000000000000000000000000000001"),
+		Topics:      []common.Hash{common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000002")},
+		BlockNumber: 100,
+		TxHash:      common.HexToHash("0x0000000000000000000000000000000000000000000000000000000000000003"),
+	})))
+
+	parts := [7]string{
+		"ANY",  // 0 prefix
+		"4690", // 1 network
+		"",     // 2 tx index
+		"",     // 3 block number
+		"",     // 4 contract address
+		"",     // 5 topic hash
+		"",     // 6 tx hash
+	}
+	_, _, err := meta.ParseLogKey(strings.Join(parts[:5], "_"))
+	r.ErrorContains(err, "invalid log key parts")
+
+	_, _, err = meta.ParseLogKey(strings.Join(parts[:], "_"))
+	r.ErrorContains(err, "invalid log key prefix")
+
+	parts[0] = "LOG"
+	parts[1] = "100"
+	_, _, err = meta.ParseLogKey(strings.Join(parts[:], "_"))
+	r.ErrorContains(err, "invalid log key network")
+
+	parts[1] = "4690"
+	parts[2] = "any"
+	_, _, err = meta.ParseLogKey(strings.Join(parts[:], "_"))
+	r.ErrorContains(err, "invalid log key block number")
+
+	parts[2] = "100"
+	parts[3] = "abc"
+	_, _, err = meta.ParseLogKey(strings.Join(parts[:], "_"))
+	r.ErrorContains(err, "invalid log key tx index")
+
+	parts[3] = "1"
+	_, _, err = meta.ParseLogKey(strings.Join(parts[:], "_"))
+	r.ErrorContains(err, "contract not found")
+
+	parts[4] = "0x6AfCB0EB71B7246A68Bb9c0bFbe5cD7c11c4839f"
+	_, _, err = meta.ParseLogKey(strings.Join(parts[:], "_"))
+	r.ErrorContains(err, "event not found")
+
+	name := "ProjectConfigUpdated"
+	topic, _ := contracts[0].Topic(name)
+	parts[5] = topic.String()
+	c, event, err := meta.ParseLogKey(strings.Join(parts[:], "_"))
+	r.NoError(err)
+	r.NotNil(c)
+	r.Equal(event, name)
 }

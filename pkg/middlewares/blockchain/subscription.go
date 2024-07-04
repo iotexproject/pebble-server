@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 )
 
@@ -28,7 +27,6 @@ type WatchOptions struct {
 type subscriber struct {
 	meta    Meta
 	id      string
-	name    string
 	err     chan error
 	stopped chan error
 	cancel  context.CancelFunc
@@ -47,9 +45,9 @@ func (s *subscriber) Unsubscribe() {
 	s.cancel()
 	err := <-s.stopped
 	if errors.Is(err, context.Canceled) {
-		l.Info("subscriber stopped", "name", s.name, "sub_id", s.id)
+		l.Info("watcher stopped", "sub_id", s.id)
 	} else {
-		l.Error(err, "subscriber stopped", "name", s.name, "sub_id", s.id)
+		l.Error(err, "watcher stopped", "sub_id", s.id)
 	}
 	s.cleanup()
 	s.err <- err
@@ -67,9 +65,8 @@ type watcher struct {
 
 func (w *watcher) fields(others ...any) []any {
 	return append(others,
+		"sub_id", w.sub.id,
 		"current", w.current.Load(),
-		"name", w.sub.name,
-		"id", w.sub.id,
 	)
 }
 
@@ -85,15 +82,15 @@ func (w *watcher) run(ctx context.Context) {
 			current uint64 // monitor current block height
 			from    uint64 // scan from
 			to      uint64 // scan to
-			logs    []*types.Log
+			results []*result
 			err     error
 		)
-		_, from, err = w.persist.QueryWatcher(w.meta, w.name)
+		_, from, err = w.persist.WatcherRange(w.meta, w.name)
 		if err != nil {
 			goto Failed
 		}
 		from += 1
-		_, current, err = w.persist.MetaRange(w.meta)
+		_, current, err = w.persist.MonitorRange(w.meta)
 		if err != nil {
 			goto Failed
 		}
@@ -101,21 +98,25 @@ func (w *watcher) run(ctx context.Context) {
 			goto TryLater
 		}
 		to = min(current, from+100000)
-		logs, err = w.persist.QueryTxByHeightRange(w.meta, from, to)
+		results, err = w.persist.QueryTxByHeightRange(w.meta, from, to)
 		if err != nil {
 			goto Failed
 		}
 		if w.handler != nil {
-			for _, log := range logs {
-				w.handler(w.sub, log)
+			for _, res := range results {
+				key := string(res.key)
+				c, event, err := w.meta.ParseLogKey(key)
+				if err != nil {
+					l.Error(err, "failed to parse log key: %s", key)
+					continue
+				}
+				w.handler(w.sub, c, event, res.log)
 			}
 		}
-		if err = w.persist.UpdateWatcher(w.meta, w.name, w.from, to); err != nil {
+		if err = w.persist.UpdateWatcherRange(w.meta, w.name, w.from, to); err != nil {
 			goto Failed
 		}
-		if len(logs) > 0 {
-			l.Info("watcher queried", w.fields("from", from, "to", to, "count", len(logs))...)
-		}
+		l.Info("watcher queried", w.fields("from", from, "to", to, "count", len(results))...)
 		w.current.Store(to)
 		if to == current {
 			goto TryLater

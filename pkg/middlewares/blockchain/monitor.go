@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -21,9 +20,13 @@ type MonitorClient interface {
 	FilterLogs(context.Context, ethereum.FilterQuery) ([]types.Log, error)
 }
 
+func NewMonitor(network Network, contracts ...*Contract) *Monitor {
+	meta := NewMeta(network, contracts...)
+	return &Monitor{meta: *meta}
+}
+
 type Monitor struct {
-	Meta     Meta
-	name     string
+	meta     Meta
 	client   MonitorClient
 	persist  TxPersistence
 	subs     sync.Map
@@ -32,6 +35,7 @@ type Monitor struct {
 	from    uint64
 	current atomic.Uint64
 	init    sync.Once
+	started atomic.Bool
 
 	stopped chan error
 	cancel  context.CancelFunc
@@ -42,7 +46,7 @@ func (m *Monitor) Init() error {
 	var err error
 	m.init.Do(func() {
 		var from, end uint64
-		from, end, err = m.persist.MetaRange(m.Meta)
+		from, end, err = m.persist.MonitorRange(m.meta)
 		if err != nil {
 			err = errors.Wrap(err, "failed to load monitor range")
 			return
@@ -57,7 +61,7 @@ func (m *Monitor) Init() error {
 			m.from = from
 			m.current.Store(end)
 		}
-		if err = m.persist.UpdateMetaRange(m.Meta, m.from, m.current.Load()-1); err != nil {
+		if err = m.persist.UpdateMonitorRange(m.meta, m.from, m.current.Load()-1); err != nil {
 			err = errors.Wrap(err, "failed to update monitor range")
 			return
 		}
@@ -69,32 +73,29 @@ func (m *Monitor) Init() error {
 		ctx, cancel := context.WithCancel(context.Background())
 		m.cancel = cancel
 		go m.run(ctx)
-		l.Info("monitor started", m.fields()...)
+		m.started.Store(true)
+		l.Info("monitor started", "from", m.from, "current", m.current.Load())
 	})
 	return err
 }
 
 func (m *Monitor) Stop() {
 	m.stop.Do(func() {
-		m.cancel()
-		err := <-m.stopped // wait monitor stop to safe close TxPersistence
-		if errors.Is(err, context.Canceled) {
-			l.Info("monitor stopped", m.fields()...)
-		} else {
-			l.Error(err, "monitor failed", m.fields()...)
+		if m.started.Load() {
+			m.cancel()
+			err := <-m.stopped // wait monitor stop to safe close TxPersistence
+			if errors.Is(err, context.Canceled) {
+				l.Info("monitor stopped", "current", m.current.Load())
+			} else {
+				l.Error(err, "monitor failed", "current", m.current.Load())
+			}
+			m.subs.Range(func(k, v any) bool {
+				v.(Subscription).Unsubscribe()
+				return true
+			})
 		}
-		m.subs.Range(func(k, v any) bool {
-			v.(Subscription).Unsubscribe()
-			return true
-		})
+		m.started.Store(false)
 	})
-}
-
-func (m *Monitor) fields(others ...any) []any {
-	return append(others,
-		"current", m.current.Load(),
-		"name", m.name,
-	)
 }
 
 func (m *Monitor) WithPersistence(p TxPersistence) *Monitor {
@@ -129,14 +130,10 @@ func (m *Monitor) Endpoint() string {
 	return m.client.ChainEndpoint()
 }
 
-func (m *Monitor) Name() string {
-	return m.name
-}
-
 func (m *Monitor) run(ctx context.Context) {
 	filter := ethereum.FilterQuery{
-		Addresses: []common.Address{m.Meta.Contract},
-		Topics:    [][]common.Hash{{m.Meta.Topic}},
+		Addresses: m.meta.Contracts,
+		Topics:    m.meta.Topics,
 		FromBlock: new(big.Int),
 		ToBlock:   new(big.Int),
 	}
@@ -155,7 +152,7 @@ func (m *Monitor) run(ctx context.Context) {
 			results []types.Log
 			err     error
 		)
-		_, from, err = m.persist.MetaRange(m.Meta)
+		_, from, err = m.persist.MonitorRange(m.meta)
 		if err != nil {
 			goto Failed
 		}
@@ -178,17 +175,15 @@ func (m *Monitor) run(ctx context.Context) {
 		for i := range logs {
 			logs[i] = &results[i]
 		}
-		if err = m.persist.InsertLogs(m.Meta, logs...); err != nil {
+		if err = m.persist.InsertLogs(m.meta, logs...); err != nil {
 			err = errors.Wrap(err, "failed to insert logs")
 			goto Failed
 		}
-		if err = m.persist.UpdateMetaRange(m.Meta, m.from, to); err != nil {
+		if err = m.persist.UpdateMonitorRange(m.meta, m.from, to); err != nil {
 			err = errors.Wrap(err, "failed to update meta range")
 			goto Failed
 		}
-		if len(logs) > 0 {
-			l.Info("monitor queried", m.fields("from", from, "to", to, "count", len(logs))...)
-		}
+		l.Info("monitor queried", "from", from, "to", to, "count", len(logs))
 		m.current.Store(to)
 		if to == current {
 			goto TryLater
@@ -215,7 +210,7 @@ func (m *Monitor) WatchList() []string {
 	return subs
 }
 
-type EventHandler func(sub Subscription, tx *types.Log)
+type EventHandler func(Subscription, *Contract, string, *types.Log)
 
 func (m *Monitor) Watch(opts *WatchOptions, h EventHandler) (Subscription, error) {
 	if opts == nil {
@@ -228,24 +223,20 @@ func (m *Monitor) Watch(opts *WatchOptions, h EventHandler) (Subscription, error
 
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &subscriber{
-		meta:    m.Meta,
+		meta:    m.meta,
 		id:      opts.SubID,
-		name:    m.name,
 		err:     make(chan error, 1),
 		stopped: make(chan error, 1),
 		cancel:  cancel,
 		cleanup: func() {
 			m.subs.Delete(opts.SubID)
 			if opts.unassigned {
-				_ = m.persist.RemoveWatcher(m.Meta, opts.SubID)
+				_ = m.persist.RemoveWatcher(m.meta, opts.SubID)
 			}
 		},
 	}
 	if _, loaded := m.subs.LoadOrStore(opts.SubID, s); loaded {
-		return nil, errors.Errorf(
-			"monitor is watching by subscriber `%s` %s",
-			opts.SubID, m.Meta.String(),
-		)
+		return nil, errors.Errorf("subscriber `%s` watching", opts.SubID)
 	}
 
 	var (
@@ -260,7 +251,7 @@ func (m *Monitor) Watch(opts *WatchOptions, h EventHandler) (Subscription, error
 		}
 	}()
 
-	from, end, err = m.persist.QueryWatcher(m.Meta, opts.SubID)
+	from, end, err = m.persist.WatcherRange(m.meta, opts.SubID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to query watcher")
 	}
@@ -274,14 +265,14 @@ func (m *Monitor) Watch(opts *WatchOptions, h EventHandler) (Subscription, error
 		end = from
 	}
 
-	if err = m.persist.UpdateWatcher(m.Meta, opts.SubID, from, end-1); err != nil {
+	if err = m.persist.UpdateWatcherRange(m.meta, opts.SubID, from, end-1); err != nil {
 		err = errors.Wrap(err, "failed to update watcher")
 		return nil, err
 	}
 
 	w := &watcher{
 		persist: m.persist,
-		meta:    m.Meta,
+		meta:    m.meta,
 		sub:     s,
 		name:    opts.SubID,
 		from:    from,

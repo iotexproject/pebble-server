@@ -1,6 +1,8 @@
 package blockchain
 
 import (
+	"sort"
+
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -24,6 +26,11 @@ func (c *Contract) Init() error {
 	if c.ID == "" || c.Network == NETWORK_UNKNOWN || c.Address.Cmp(common.Address{}) == 0 {
 		return errors.Errorf("invalid contract id, network or address")
 	}
+
+	sort.Slice(c.Events, func(i, j int) bool {
+		return c.Events[i].Name < c.Events[j].Name
+	})
+
 	for _, event := range c.Events {
 		if err := event.Init(); err != nil {
 			return errors.Wrapf(err, "failed to init event: `%s`", event.Name)

@@ -99,7 +99,7 @@ func Main() error {
 	_ = config.LarkAlert.Push("service started", "")
 
 	blockchain.SetLogger(config.Logger)
-	if err := config.Blockchain.RunMonitors(); err != nil {
+	if err := config.Blockchain.RunMonitor(); err != nil {
 		config.Logger.Error(err, "failed to start tx monitor")
 	}
 	event.InitRunner(ctx)()

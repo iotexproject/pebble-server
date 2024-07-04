@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"sort"
+	"strings"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -134,17 +135,15 @@ func Init(ctx context.Context) error {
 		l   = must.BeTrueV(contexts.LoggerFromContext(ctx))
 		err error
 	)
+	if err = StartChainEventConsuming(ctx); err != nil {
+		return err
+	}
 	for _, v := range Events() {
-		switch v.Source() {
-		case SOURCE_TYPE__MQTT:
+		if v.Source() == SOURCE_TYPE__MQTT {
 			err = StartMqttEventConsuming(ctx, v)
-		case SOURCE_TYPE__BLOCKCHAIN:
-			err = StartChainEventConsuming(ctx, v)
-		default:
-			panic(errors.Errorf("unexpected event source type: %d", v))
-		}
-		if err != nil {
-			return errors.Wrapf(err, "failed to start event consuming [topic:%s]", v.Topic())
+			if err != nil {
+				return errors.Wrapf(err, "failed to start event consuming [topic:%s]", v.Topic())
+			}
 		}
 		l.Info("event monitor started", "source", v.Source().String(), "topic", v.Topic())
 	}
@@ -164,24 +163,14 @@ func StartMqttEventConsuming(ctx context.Context, v Event) error {
 	return errors.Wrap(err, "failed to start mqtt subscribing")
 }
 
-func StartChainEventConsuming(ctx context.Context, e Event) error {
-	v, ok := e.(EventHasBlockchainMeta)
-	must.BeTrueWrap(ok, "expect blockchain source event impl `EventHasBlockchainMeta`")
-
+func StartChainEventConsuming(ctx context.Context) error {
 	bc := must.BeTrueV(contexts.BlockchainFromContext(ctx))
-	contract := bc.ContractByID(v.ContractID())
-	if contract == nil {
-		return errors.Errorf("contract not found: [contract: %s]", v.ContractID())
-	}
-	monitor := bc.Monitor(v.ContractID(), v.EventName())
-	if monitor == nil {
-		return errors.Errorf("monitor not found: [contract: %s] [event: %s]", v.ContractID(), v.EventName())
-	}
 
-	sub, err := monitor.Watch(
+	sub, err := bc.Watch(
 		&blockchain.WatchOptions{SubID: "sprout-seq"},
-		func(sub blockchain.Subscription, tx *types.Log) {
-			_ = Handle(ctx, v.Topic(), v.Topic(), &TxEventParser{contract, tx})
+		func(sub blockchain.Subscription, c *blockchain.Contract, event string, tx *types.Log) {
+			topic := strings.Join([]string{"TOPIC", c.ID, strings.ToUpper(event)}, "__")
+			_ = Handle(ctx, topic, topic, &TxEventParser{c, tx})
 		},
 	)
 	if err != nil {
@@ -190,16 +179,16 @@ func StartChainEventConsuming(ctx context.Context, e Event) error {
 
 	nc, _ := contexts.LarkAlertFromContext(ctx)
 	if nc != nil && !nc.IsZero() {
-		go func(nc *alert.LarkAlert, sub blockchain.Subscription, m *blockchain.Monitor) {
+		go func(nc *alert.LarkAlert, sub blockchain.Subscription) {
 			err := <-sub.Err()
 			if errors.Is(err, context.Canceled) {
 				return
 			}
 			_ = nc.Push(
 				"chain subscriber stopped",
-				fmt.Sprintf("\nmonitor: %s\nsubscriber: %s\n%v", m.Name(), sub.ID(), err),
+				fmt.Sprintf("\nsubscriber: %s\n%v", sub.ID(), err),
 			)
-		}(nc, sub, monitor)
+		}(nc, sub)
 	}
 	return nil
 }

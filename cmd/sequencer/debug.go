@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"os"
-	"sort"
 
 	"github.com/gin-gonic/gin"
 	"github.com/xoctopus/x/misc/must"
@@ -17,27 +16,11 @@ func RunDebugServer(ctx context.Context) {
 	// addr := contexts.ServerAddrFromContext(ctx)
 	eng := gin.Default()
 	eng.Handle(
-		http.MethodGet, "/debug/monitor-info",
+		http.MethodGet, "/debug/monitor",
 		func(c *gin.Context) {
 			bc := must.BeTrueV(contexts.BlockchainFromContext(ctx))
-			monitors := bc.MonitorsInfo()
-			sort.Slice(monitors, func(i, j int) bool {
-				return monitors[i].Name < monitors[j].Name
-			})
-
-			name := c.Query("name")
-			if name == "" {
-				c.JSON(http.StatusOK, monitors)
-				return
-			} else {
-				for _, m := range monitors {
-					if m.Name == name {
-						c.JSON(http.StatusOK, m)
-						return
-					}
-				}
-			}
-			c.Status(http.StatusNotFound)
+			meta := bc.MonitorMeta()
+			c.JSON(http.StatusOK, meta)
 		},
 	)
 	eng.Handle(

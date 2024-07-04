@@ -5,7 +5,6 @@ import (
 
 	"github.com/cockroachdb/pebble"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/xhd2015/xgo/runtime/mock"
@@ -17,7 +16,7 @@ import (
 func TestBlockchain_Init(t *testing.T) {
 	r := require.New(t)
 
-	contract1 := &Contract{
+	contract := &Contract{
 		ID:      "SproutProjectRegistrar",
 		Network: NETWORK__IOTX_TESTNET,
 		Address: common.HexToAddress("0x4888bfbf39Dc83C19cbBcb307ccE8F7F93b72E38"),
@@ -52,7 +51,7 @@ func TestBlockchain_Init(t *testing.T) {
 
 	t.Run("InitContracts", func(t *testing.T) {
 		t.Run("NetworkNotFound", func(t *testing.T) {
-			contract := ptrx.Ptr(*contract1)
+			contract := ptrx.Ptr(*contract)
 			contract.Network = NETWORK__IOTX_MAINNET
 			contract.Address = common.Address{}
 
@@ -61,7 +60,7 @@ func TestBlockchain_Init(t *testing.T) {
 			r.ErrorContains(bc.Init(), "invalid contract")
 		})
 		t.Run("FailedToInitContract", func(t *testing.T) {
-			contract := ptrx.Ptr(*contract1)
+			contract := ptrx.Ptr(*contract)
 			contract.ID = ""
 			contract.Network = NETWORK__IOTX_MAINNET
 
@@ -72,7 +71,7 @@ func TestBlockchain_Init(t *testing.T) {
 		t.Run("ContractIDConflict", func(t *testing.T) {
 			bc := &Blockchain{
 				Network:   NETWORK__IOTX_TESTNET,
-				Contracts: []*Contract{ptrx.Ptr(*contract1), ptrx.Ptr(*contract1)},
+				Contracts: []*Contract{ptrx.Ptr(*contract), ptrx.Ptr(*contract)},
 			}
 			bc.SetDefault()
 
@@ -81,11 +80,11 @@ func TestBlockchain_Init(t *testing.T) {
 		t.Run("ContractAddressOrNetworkConflict", func(t *testing.T) {
 			bc := &Blockchain{
 				Network:   NETWORK__IOTX_TESTNET,
-				Contracts: []*Contract{ptrx.Ptr(*contract1), ptrx.Ptr(*contract1)},
+				Contracts: []*Contract{ptrx.Ptr(*contract), ptrx.Ptr(*contract)},
 			}
 			bc.Contracts[0].ID = "any"
 			bc.SetDefault()
-			r.ErrorContains(bc.Init(), "contract `SproutProjectRegistrar` duplicated with `any`")
+			r.ErrorContains(bc.Init(), "contract `any` duplicated with `SproutProjectRegistrar`")
 		})
 	})
 
@@ -96,7 +95,7 @@ func TestBlockchain_Init(t *testing.T) {
 			})
 			bc := &Blockchain{
 				PersistPath: dir(t),
-				Contracts:   []*Contract{ptrx.Ptr(*contract1)},
+				Contracts:   []*Contract{ptrx.Ptr(*contract)},
 			}
 			bc.SetDefault()
 			err := bc.Init()
@@ -108,46 +107,51 @@ func TestBlockchain_Init(t *testing.T) {
 	t.Run("InitMonitors", func(t *testing.T) {
 		t.Run("FailedToInitMonitor", func(t *testing.T) {
 			// mock a invalid meta range to make persist.Init failed
-			topic := common.BytesToHash(crypto.Keccak256([]byte("ProjectRegistered(uint256)")))
+			c2 := &Contract{
+				ID:      contract.ID,
+				Network: contract.Network,
+				Address: contract.Address,
+				Events:  []*Event{ptrx.Ptr(*contract.Events[0])},
+			}
+			r.NoError(c2.Init())
+			meta := NewMeta(contract.Network, c2)
 			p := &Persist{Path: dir(t)}
 			r.NoError(p.Init())
-			r.NoError(p.Store((&Meta{
-				Network:  contract1.Network,
-				Contract: contract1.Address,
-				Topic:    topic,
-			}).RangeEndKey(), make([]byte, 10)))
+			r.NoError(p.Store(meta.MonitorRangeEndKey(), make([]byte, 10)))
 			r.NoError(p.Close())
 
 			bc := &Blockchain{
-				Network:     contract1.Network,
+				Network:     contract.Network,
 				PersistPath: p.Path,
-				Contracts:   []*Contract{ptrx.Ptr(*contract1)},
-				AutoRun:     true,
+				Contracts:   []*Contract{ptrx.Ptr(*contract)},
 			}
 			bc.SetDefault()
-
 			err := bc.Init()
-			r.ErrorContains(err, "failed to init monitor")
+			r.NoError(err)
+			defer bc.Close()
+
+			_, err = bc.Watch(nil, nil)
+			r.ErrorContains(err, "failed to load monitor range")
 		})
 	})
 
 	bc := &Blockchain{
-		Network:     contract1.Network,
+		Network:     contract.Network,
 		PersistPath: dir(t),
-		Contracts:   []*Contract{ptrx.Ptr(*contract1)},
-		AutoRun:     true,
+		Contracts:   []*Contract{ptrx.Ptr(*contract)},
 	}
 	bc.SetDefault()
 
 	t.Run("Success", func(t *testing.T) {
 		r.NoError(bc.Init())
 		defer bc.Close()
+		r.NoError(bc.RunMonitor())
+		_, err := bc.Watch(nil, nil)
+		r.NoError(err)
+
 		r.NotNil(bc.ClientByNetwork())
 		r.NotNil(bc.ContractByID("SproutProjectRegistrar"))
-		r.NotNil(bc.Monitor("SproutProjectRegistrar", "ProjectRegistered"))
-		r.Nil(bc.Monitor("not-found-contract", "ProjectRegistered"))
-		r.Nil(bc.Monitor("SproutProjectRegistrar", "not-found-event"))
-		monitors := bc.MonitorsInfo()
+		monitors := bc.MonitorMeta()
 		t.Log(monitors)
 	})
 }

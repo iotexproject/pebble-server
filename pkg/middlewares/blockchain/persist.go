@@ -7,32 +7,32 @@ import (
 	"io"
 
 	"github.com/cockroachdb/pebble"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
 	"github.com/xoctopus/x/textx"
 )
 
+type result struct {
+	key []byte
+	log *types.Log
+}
+
 type TxPersistence interface {
-	// MetaRange query persisted meta range
-	MetaRange(Meta) (uint64, uint64, error)
-	// UpdateMetaRange update persisted meta range
-	UpdateMetaRange(Meta, uint64, uint64) error
-	// QueryTxByHash query tx log by tx hash and blockchain meta
-	QueryTxByHash(Meta, common.Hash) (*types.Log, error)
-	// QueryTxByHeightRange query tx logs by blockchain meta and block number range
-	QueryTxByHeightRange(Meta, uint64, uint64) ([]*types.Log, error)
-	// QueryTxByHeight query tx logs by blockchain meta and block number range
-	QueryTxByHeight(Meta, uint64) ([]*types.Log, error)
-	// InsertLogs insert tx logs with blockchain meta
-	InsertLogs(Meta, ...*types.Log) error
+	// MonitorRange query persisted monitor range
+	MonitorRange(Meta) (uint64, uint64, error)
+	// UpdateMonitorRange update persisted monitor range
+	UpdateMonitorRange(Meta, uint64, uint64) error
 	// QueryWatcher query watcher state by meta id and subscriber id
-	QueryWatcher(Meta, string) (uint64, uint64, error)
+	WatcherRange(Meta, string) (uint64, uint64, error)
 	// UpdateWatcher update watcher state
-	UpdateWatcher(Meta, string, uint64, uint64) error
+	UpdateWatcherRange(Meta, string, uint64, uint64) error
 	// RemoveWatcher remove watcher state
 	RemoveWatcher(Meta, string) error
+	// QueryTxByHeightRange query tx logs by blockchain meta and block number range
+	QueryTxByHeightRange(Meta, uint64, uint64) ([]*result, error)
+	// InsertLogs insert tx logs with blockchain meta
+	InsertLogs(Meta, ...*types.Log) error
 	// Close
 	Close() error
 }
@@ -265,88 +265,79 @@ func (p *Persist) LoadTextValue(k []byte, v any) error {
 	return textx.UnmarshalText(data, v)
 }
 
-func (p *Persist) MetaRange(meta Meta) (from uint64, end uint64, err error) {
-	from, err = p.GetUint64(meta.RangeFromKey())
+func (p *Persist) MonitorRange(meta Meta) (from uint64, end uint64, err error) {
+	from, err = p.GetUint64(meta.MonitorRangeFromKey())
 	if err != nil {
 		return
 	}
-	end, err = p.GetUint64(meta.RangeEndKey())
+	end, err = p.GetUint64(meta.MonitorRangeEndKey())
 	if err != nil {
 		return
 	}
 	return from, end, nil
 }
 
-func (p *Persist) UpdateMetaRange(meta Meta, from, end uint64) error {
-	if err := p.SetUint64(meta.RangeFromKey(), from); err != nil {
+func (p *Persist) UpdateMonitorRange(meta Meta, from, end uint64) error {
+	if err := p.SetUint64(meta.MonitorRangeFromKey(), from); err != nil {
 		return err
 	}
-	return p.SetUint64(meta.RangeEndKey(), end)
+	return p.SetUint64(meta.MonitorRangeEndKey(), end)
+}
+
+func (p *Persist) WatcherRange(meta Meta, id string) (uint64, uint64, error) {
+	from, err := p.GetUint64(meta.WatcherRangeFromKey(id))
+	if err != nil {
+		return 0, 0, err
+	}
+	end, err := p.GetUint64(meta.WatcherRangeEndKey(id))
+	if err != nil {
+		return 0, 0, err
+	}
+	return from, end, nil
+}
+
+func (p *Persist) UpdateWatcherRange(meta Meta, id string, from, end uint64) error {
+	if err := p.SetUint64(meta.WatcherRangeFromKey(id), from); err != nil {
+		return err
+	}
+	return p.SetUint64(meta.WatcherRangeEndKey(id), end)
+}
+
+func (p *Persist) RemoveWatcher(meta Meta, id string) error {
+	if err := p.Delete(meta.WatcherRangeFromKey(id)); err != nil {
+		return err
+	}
+	return p.Delete(meta.WatcherRangeEndKey(id))
 }
 
 // QueryTxByHeightRange query tx logs the block number between from and to [from,to]
-func (p *Persist) QueryTxByHeightRange(meta Meta, from, to uint64) ([]*types.Log, error) {
+func (p *Persist) QueryTxByHeightRange(meta Meta, from, to uint64) ([]*result, error) {
 	must.BeTrueWrap(from <= to, "assertion range start less than end")
 
-	iter, err := p.db.NewIter(&pebble.IterOptions{
+	opt := &pebble.IterOptions{
 		LowerBound: meta.BlockKeyPrefixLowerBound(from),
-		UpperBound: meta.BlockKeyPrefixLowerBound(to + 1),
-	})
+		UpperBound: meta.BlockKeyPrefixUpperBound(to + 1),
+	}
+	iter, err := p.db.NewIter(opt)
 	if err != nil {
 		return nil, err
 	}
 
-	logs := make([]*types.Log, 0)
+	results := make([]*result, 0)
 	for iter.First(); iter.Valid(); iter.Next() {
-		log := &types.Log{}
 		key := iter.Key()
+		log := &types.Log{}
 		if err = p.LoadJSONValue(key, log); err != nil {
 			return nil, err
 		}
-		logs = append(logs, log)
+		cloned := make([]byte, len(key))
+		copy(cloned, key)
+		results = append(results, &result{cloned, log})
 	}
-
-	return logs, nil
-}
-
-func (p *Persist) QueryTxByHash(meta Meta, tx common.Hash) (*types.Log, error) {
-	log := &types.Log{}
-	if err := p.LoadJSONValue(meta.TxHashKey(tx), log); err != nil {
-		return nil, err
-	}
-	return log, nil
-}
-
-func (p *Persist) QueryTxByHeight(meta Meta, blk uint64) ([]*types.Log, error) {
-	iter, err := p.db.NewIter(&pebble.IterOptions{
-		LowerBound: meta.BlockKeyPrefixLowerBound(blk),
-		UpperBound: meta.BlockKeyPrefixUpperBound(blk),
-	})
-	if err != nil {
-		return nil, err
-	}
-	defer iter.Close()
-
-	logs := make([]*types.Log, 0)
-	for iter.First(); iter.Valid(); iter.Next() {
-		log := &types.Log{}
-		key := iter.Key()
-		if err = p.LoadJSONValue(key, log); err != nil {
-			return nil, err
-		}
-		logs = append(logs, log)
-	}
-	return logs, nil
+	return results, nil
 }
 
 func (p *Persist) InsertLogs(meta Meta, logs ...*types.Log) error {
-	_, end, err := p.MetaRange(meta)
-	if err != nil {
-		return err
-	}
-
-	var highest uint64
-
 	var kvs [][2][]byte
 	for i := range logs {
 		log := logs[i]
@@ -357,52 +348,9 @@ func (p *Persist) InsertLogs(meta Meta, logs ...*types.Log) error {
 				meta.String(), log.TxHash.String(),
 			)
 		}
-		kvs = append(kvs,
-			// LOG_$(META)$(TX): LOG DATA
-			[2][]byte{meta.TxHashKey(log.TxHash), data},
-			// BLK_$(META)$(BLK)$(TX): LOG DATA
-			[2][]byte{meta.BlockKey(log), data},
-		)
-
-		if log.BlockNumber > end {
-			highest = log.BlockNumber
-			end = highest
-		}
+		kvs = append(kvs, [2][]byte{meta.LogKey(log), data})
 	}
-
-	if highest != 0 {
-		blk := [8]byte{}
-		gByteOrder.PutUint64(blk[:], highest)
-		kvs = append(kvs, [2][]byte{meta.RangeEndKey(), blk[:]})
-	}
-
 	return p.BatchSet(kvs...)
-}
-
-func (p *Persist) QueryWatcher(meta Meta, id string) (uint64, uint64, error) {
-	from, err := p.GetUint64(meta.WatcherFromKey(id))
-	if err != nil {
-		return 0, 0, err
-	}
-	end, err := p.GetUint64(meta.WatcherEndKey(id))
-	if err != nil {
-		return 0, 0, err
-	}
-	return from, end, nil
-}
-
-func (p *Persist) UpdateWatcher(meta Meta, id string, from, end uint64) error {
-	if err := p.SetUint64(meta.WatcherFromKey(id), from); err != nil {
-		return err
-	}
-	return p.SetUint64(meta.WatcherEndKey(id), end)
-}
-
-func (p *Persist) RemoveWatcher(meta Meta, id string) error {
-	if err := p.Delete(meta.WatcherFromKey(id)); err != nil {
-		return err
-	}
-	return p.Delete(meta.WatcherEndKey(id))
 }
 
 var gByteOrder = binary.BigEndian

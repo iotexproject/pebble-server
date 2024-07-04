@@ -10,8 +10,8 @@ type Network int
 
 const (
 	NETWORK_UNKNOWN       Network = 0
-	NETWORK__IOTX_MAINNET         = 4689
-	NETWORK__IOTX_TESTNET         = 4690
+	NETWORK__IOTX_MAINNET Network = 4689
+	NETWORK__IOTX_TESTNET Network = 4690
 )
 
 var InvalidNetwork = errors.New("invalid Network type")

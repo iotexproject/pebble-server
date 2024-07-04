@@ -1,25 +1,26 @@
 package blockchain
 
 import (
+	"sort"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
-	"github.com/xoctopus/x/misc/must"
 )
 
 type Blockchain struct {
 	Clients     []*EthClient
 	Contracts   []*Contract
-	PersistPath string
 	Network     Network
-	AutoRun     bool
+	PersistPath string
 
-	monitors  sync.Map
+	monitor   *Monitor
 	clients   map[Network]*EthClient
 	contracts map[string]*Contract
 	persist   TxPersistence
-	once      sync.Once
+	start     sync.Once
+	stop      sync.Once
 }
 
 func (bc *Blockchain) SetDefault() {
@@ -65,6 +66,10 @@ func (bc *Blockchain) Init() error {
 		bc.clients[c.Network] = c
 	}
 
+	sort.Slice(bc.Contracts, func(i, j int) bool {
+		return bc.Contracts[i].ID < bc.Contracts[j].ID
+	})
+
 	for _, c := range bc.Contracts {
 		if c.Network != bc.Network {
 			continue
@@ -97,21 +102,12 @@ func (bc *Blockchain) Init() error {
 		return errors.Wrapf(err, "failed to init bc persistence")
 	}
 	bc.persist = persist
-
-	if bc.AutoRun {
-		err = bc.RunMonitors()
-		return err
-	}
-
 	return nil
 }
 
 func (bc *Blockchain) Close() {
-	bc.once.Do(func() {
-		bc.monitors.Range(func(_, v any) bool {
-			v.(*Monitor).Stop()
-			return true
-		})
+	bc.stop.Do(func() {
+		bc.monitor.Stop()
 		bc.persist.Close()
 	})
 }
@@ -124,99 +120,71 @@ func (bc *Blockchain) ContractByID(id string) *Contract {
 	return bc.contracts[bc.Network.String()+"__"+id]
 }
 
-func (bc *Blockchain) Monitor(id, name string) *Monitor {
-	contract := bc.ContractByID(id)
-	if contract == nil {
-		return nil
-	}
+func (bc *Blockchain) RunMonitor() error {
+	var err error
+	bc.start.Do(func() {
+		bc.monitor = NewMonitor(bc.Network, bc.Contracts...)
 
-	event, ok := contract.events[name]
-	if !ok {
-		return nil
-	}
+		bc.monitor.WithInterval(10 * time.Second).
+			WithStartBlock(14900000).
+			WithEthClient(bc.clients[bc.Network]).
+			WithPersistence(bc.persist)
 
-	meta := &Meta{contract.Network, contract.Address, event.event.ID}
-	return must.BeTrueV(bc.monitors.Load(meta.String())).(*Monitor)
+		err = bc.monitor.Init()
+	})
+	return err
 }
 
-func (bc *Blockchain) RunMonitors() error {
-	for name, c := range bc.contracts {
-		if c.Network != bc.Network {
-			continue
-		}
-		for _, event := range c.events {
-			monitor := &Monitor{
-				Meta: Meta{
-					Network:  c.Network,
-					Contract: c.Address,
-					Topic:    event.event.ID,
-				},
-				name:    name + "__" + event.Name,
-				client:  bc.clients[c.Network],
-				persist: bc.persist,
-			}
-			if _, ok := bc.monitors.Load(monitor.Meta.String()); ok {
-				continue
-			}
-			if err := monitor.Init(); err != nil {
-				return errors.Wrapf(err, "failed to init monitor: %s", monitor.name)
-			}
-			bc.monitors.Store(monitor.Meta.String(), monitor)
-		}
+func (bc *Blockchain) Watch(options *WatchOptions, h EventHandler) (Subscription, error) {
+	if err := bc.RunMonitor(); err != nil {
+		return nil, err
 	}
-	return nil
+	return bc.monitor.Watch(options, h)
 }
 
 type MonitorInfo struct {
-	Name        string         `json:"name"`
-	Network     Network        `json:"network"`
-	Endpoint    string         `json:"endpoint"`
-	Contract    common.Address `json:"contract"`
-	Topic       common.Hash    `json:"topic"`
-	StartedAt   uint64         `json:"startedAt"`
-	Current     uint64         `json:"current"`
-	Subscribers []*struct {
-		Name      string `json:"name"`
-		StartedAt uint64 `json:"startedAt"`
-		Current   uint64 `json:"current"`
-	} `json:"subscribers"`
-	meta Meta
+	Contracts map[string]struct {
+		Address common.Address         `json:"address"`
+		Events  map[string]common.Hash `json:"events"`
+	} `json:"contracts"`
+	From     uint64 `json:"from"`
+	End      uint64 `json:"end"`
+	Watchers []*struct {
+		Sub  string `json:"sub"`
+		From uint64 `json:"from"`
+		End  uint64 `json:"end"`
+	} `json:"watchers"`
 }
 
-func (bc *Blockchain) MonitorsInfo() []*MonitorInfo {
-	monitors := make([]*MonitorInfo, 0)
-	bc.monitors.Range(func(_, v any) bool {
-		m := v.(*Monitor)
-		vv := &MonitorInfo{
-			Name:     m.name,
-			Network:  m.Meta.Network,
-			Endpoint: m.Endpoint(),
-			Contract: m.Meta.Contract,
-			Topic:    m.Meta.Topic,
-			meta:     m.Meta,
-		}
-		monitors = append(monitors, vv)
-		m.subs.Range(func(key, _ any) bool {
-			vv.Subscribers = append(vv.Subscribers, &struct {
-				Name      string `json:"name"`
-				StartedAt uint64 `json:"startedAt"`
-				Current   uint64 `json:"current"`
-			}{Name: key.(string), StartedAt: 0, Current: 0})
-			return true
-		})
-		return true
-	})
-
-	for _, m := range monitors {
-		start, current, _ := bc.persist.MetaRange(m.meta)
-		m.StartedAt = start
-		m.Current = current
-		for _, s := range m.Subscribers {
-			start, current, _ = bc.persist.QueryWatcher(m.meta, s.Name)
-			s.StartedAt = start
-			s.Current = current
+func (bc *Blockchain) MonitorMeta() *MonitorInfo {
+	info := &MonitorInfo{
+		Contracts: make(map[string]struct {
+			Address common.Address         `json:"address"`
+			Events  map[string]common.Hash `json:"events"`
+		}),
+		From: bc.monitor.from,
+		End:  bc.monitor.current.Load(),
+	}
+	for name, c := range bc.contracts {
+		info.Contracts[name] = struct {
+			Address common.Address         `json:"address"`
+			Events  map[string]common.Hash `json:"events"`
+		}{Address: c.Address, Events: make(map[string]common.Hash)}
+		for _, v := range c.events {
+			info.Contracts[name].Events[v.Name] = v.event.ID
 		}
 	}
 
-	return monitors
+	bc.monitor.subs.Range(func(key, _ any) bool {
+		info.Watchers = append(info.Watchers, &struct {
+			Sub  string `json:"sub"`
+			From uint64 `json:"from"`
+			End  uint64 `json:"end"`
+		}{Sub: key.(string), From: 0, End: 0})
+		return true
+	})
+	for _, s := range info.Watchers {
+		s.From, s.End, _ = bc.persist.WatcherRange(bc.monitor.meta, s.Sub)
+	}
+	return info
 }
