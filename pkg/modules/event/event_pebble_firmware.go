@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
@@ -41,6 +42,10 @@ func (e *PebbleFirmware) Unmarshal(v any) error {
 func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
+	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.Imei) {
+		return errors.Errorf("imei %s not in whitelist", e.Imei)
+	}
+
 	app := &models.App{ID: e.App}
 	if err = FetchByPrimary(ctx, app); err != nil {
 		return errors.Wrapf(err, "failed to fetch app: %s", app.ID)
@@ -59,7 +64,7 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 	}
 
 	err = PublicMqttMessage(ctx,
-		"pebble_firmware", "backend/"+e.Imei+"/firmware", e.Imei,
+		"pebble_firmware", "backend/"+e.Imei+"/firmware",
 		&struct {
 			Firmware string `json:"firmware"`
 			Uri      string `json:"uri"`

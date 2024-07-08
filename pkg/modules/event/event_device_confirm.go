@@ -87,15 +87,14 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		err = WrapHandleError(err, e)
 	}()
 
+	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.imei) {
+		return errors.Errorf("imei %s not in whitelist", e.imei)
+	}
+
 	dev := &models.Device{ID: e.imei}
 	err = FetchByPrimary(ctx, dev)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch dev: %s", dev.ID)
-	}
-
-	needhandled := contexts.CheckDeviceWhiteListFromContext(ctx, dev.ID)
-	if !needhandled {
-		return nil
 	}
 
 	if dev.Status != models.PROPOSAL {

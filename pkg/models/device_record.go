@@ -2,7 +2,6 @@ package models
 
 type DeviceRecord struct {
 	ID            string `gorm:"primary_key"`
-	Hash          string
 	Imei          string `gorm:"index:device_record_imei;not null"`
 	Operator      string `gorm:"not null"`
 	Snr           string `gorm:"not null;type:numeric(10,2);default:0"`

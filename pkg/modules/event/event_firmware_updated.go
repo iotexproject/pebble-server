@@ -55,7 +55,7 @@ func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 	}
 
 	err = PublicMqttMessage(ctx,
-		"firmware_updated", "device/app_update/"+app.ID, "",
+		"firmware_updated", "device/app_update/"+app.ID,
 		&struct {
 			Name    string `json:"name"`
 			Version string `json:"version"`

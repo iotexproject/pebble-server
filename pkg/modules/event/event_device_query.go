@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
 
@@ -30,6 +31,10 @@ func (e *DeviceQuery) UnmarshalTopic(topic []byte) error {
 
 func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
+
+	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.imei) {
+		return errors.Errorf("imei %s not in whitelist", e.imei)
+	}
 
 	dev := &models.Device{ID: e.imei}
 	err = FetchByPrimary(ctx, dev)
@@ -58,7 +63,7 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 	}
 
 	err = PublicMqttMessage(ctx,
-		"device_query", "backend/"+e.imei+"/status", e.imei,
+		"device_query", "backend/"+e.imei+"/status",
 		&struct {
 			Status   int32  `json:"status"`
 			Proposer string `json:"proposer,omitempty"`

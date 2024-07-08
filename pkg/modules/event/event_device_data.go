@@ -16,6 +16,7 @@ import (
 	"github.com/xoctopus/x/misc/must"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/pebblepb"
 )
@@ -90,6 +91,10 @@ func (e *DeviceData) UnmarshalTopic(topic []byte) error {
 
 func (e *DeviceData) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
+
+	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.imei) {
+		return errors.Errorf("imei %s not in whitelist", e.imei)
+	}
 
 	dev := &models.Device{ID: e.imei}
 	if err = FetchByPrimary(ctx, dev); err != nil {

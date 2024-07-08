@@ -107,8 +107,12 @@ func (bc *Blockchain) Init() error {
 
 func (bc *Blockchain) Close() {
 	bc.stop.Do(func() {
-		bc.monitor.Stop()
-		bc.persist.Close()
+		if bc.monitor != nil {
+			bc.monitor.Stop()
+		}
+		if bc.persist != nil {
+			bc.persist.Close()
+		}
 	})
 }
 

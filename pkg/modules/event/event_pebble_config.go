@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
@@ -41,6 +42,10 @@ func (e *PebbleConfig) Unmarshal(v any) error {
 func (e *PebbleConfig) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
+	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.Imei) {
+		return errors.Errorf("imei %s not in whitelist", e.Imei)
+	}
+
 	dev := &models.Device{ID: e.Imei, Config: e.Config}
 	if err = UpdateByPrimary(ctx, dev, map[string]any{
 		"config":     e.Config,
@@ -56,7 +61,7 @@ func (e *PebbleConfig) Handle(ctx context.Context) (err error) {
 
 	err = PublicMqttMessage(ctx,
 		"pebble_config",
-		"backend/"+e.Imei+"/config", e.Imei,
+		"backend/"+e.Imei+"/config",
 		app.Data,
 	)
 	return errors.Wrap(err, "failed to publish pebble_config response")

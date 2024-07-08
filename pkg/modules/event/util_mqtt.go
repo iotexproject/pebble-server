@@ -9,12 +9,7 @@ import (
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 )
 
-func PublicMqttMessage(ctx context.Context, id, topic, imei string, v any) error {
-	needhandled := contexts.CheckDeviceWhiteListFromContext(ctx, imei)
-	if !needhandled {
-		return nil
-	}
-
+func PublicMqttMessage(ctx context.Context, id, topic string, v any) error {
 	mq := must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
 	cli, err := mq.NewClient(id, topic)
 	if err != nil {
