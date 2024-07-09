@@ -1,5 +1,5 @@
 #NAME=$(shell basename $$PWD)
-NAME=pebble-sequencer
+NAME=replication-monitor
 FEATURE=$(shell git rev-parse --abbrev-ref HEAD)
 VERSION=$(shell git describe --tags --always)
 COMMITID=$(shell git rev-parse --short --show HEAD)
@@ -35,5 +35,3 @@ run: build
 clean:
 	@rm -rf ${NAME}
 
-image:
-	@cd ../.. && docker build -f cmd/sequencer/Dockerfile . -t $(USER)/pebble-sequencer:${VERSION}
