@@ -69,7 +69,6 @@ func init() {
 	app = confapp.NewAppContext(
 		confapp.WithBuildMeta(meta),
 		confapp.WithMainRoot("."),
-		confapp.WithDefaultConfigGenerator(),
 		confapp.WithMainExecutor(Main),
 	)
 

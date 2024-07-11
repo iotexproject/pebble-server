@@ -42,7 +42,6 @@ func init() {
 			Date:     Date,
 		}),
 		confapp.WithMainRoot("."),
-		confapp.WithDefaultConfigGenerator(),
 		confapp.WithMainExecutor(Main),
 	)
 

@@ -1,7 +1,7 @@
-REPLICATION_MONITOR__Alert_Env: ""
-REPLICATION_MONITOR__Alert_Project: ""
-REPLICATION_MONITOR__Alert_Secret: ""
-REPLICATION_MONITOR__Alert_URL: ""
-REPLICATION_MONITOR__Alert_Version: ""
 REPLICATION_MONITOR__Database_Endpoint: postgres://127.0.0.1:5432/pebble?sslmode=disable
+REPLICATION_MONITOR__LarkAlert_Env: ""
+REPLICATION_MONITOR__LarkAlert_Project: ""
+REPLICATION_MONITOR__LarkAlert_Secret: ""
+REPLICATION_MONITOR__LarkAlert_URL: ""
+REPLICATION_MONITOR__LarkAlert_Version: ""
 REPLICATION_MONITOR__Logger_Level: DEBUG

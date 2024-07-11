@@ -12,11 +12,12 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/xoctopus/datatypex"
 )
 
 type LarkAlert struct {
 	URL     string
-	Secret  string
+	Secret  datatypex.Password
 	Env     string
 	Project string `json:"-"`
 	Version string `json:"-"`
@@ -29,7 +30,7 @@ func (c *LarkAlert) IsZero() bool { return c == nil || c.URL == "" }
 func (c *LarkAlert) Init() {
 	if c.Secret != "" {
 		c.SignFn = func(ts int64) (string, error) {
-			payload := fmt.Sprintf("%v", ts) + "\n" + c.Secret
+			payload := fmt.Sprintf("%v", ts) + "\n" + c.Secret.String()
 
 			var data []byte
 			h := hmac.New(sha256.New, []byte(payload))
