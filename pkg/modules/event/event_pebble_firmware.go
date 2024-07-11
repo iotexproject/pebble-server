@@ -63,16 +63,19 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to update device firmware: %s %s", dev.ID, dev.Firmware)
 	}
 
+	meta, _ := contexts.AppMetaFromContext(ctx)
 	err = PublicMqttMessage(ctx,
 		"pebble_firmware", "backend/"+e.Imei+"/firmware",
 		&struct {
-			Firmware string `json:"firmware"`
-			Uri      string `json:"uri"`
-			Version  string `json:"version"`
+			Firmware   string `json:"firmware"`
+			Uri        string `json:"uri"`
+			Version    string `json:"version"`
+			ServerMeta string `json:"server_meta"`
 		}{
-			Firmware: e.App,
-			Uri:      app.Uri,
-			Version:  app.Version,
+			Firmware:   e.App,
+			Uri:        app.Uri,
+			Version:    app.Version,
+			ServerMeta: meta.String(),
 		},
 	)
 	return errors.Wrap(err, "failed to publish pebble_firmware response")

@@ -62,20 +62,23 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 		version = app.Version
 	}
 
+	meta, _ := contexts.AppMetaFromContext(ctx)
 	err = PublicMqttMessage(ctx,
 		"device_query", "backend/"+e.imei+"/status",
 		&struct {
-			Status   int32  `json:"status"`
-			Proposer string `json:"proposer,omitempty"`
-			Firmware string `json:"firmware,omitempty"`
-			URI      string `json:"uri,omitempty"`
-			Version  string `json:"version,omitempty"`
+			Status     int32  `json:"status"`
+			Proposer   string `json:"proposer,omitempty"`
+			Firmware   string `json:"firmware,omitempty"`
+			URI        string `json:"uri,omitempty"`
+			Version    string `json:"version,omitempty"`
+			ServerMeta string `json:"server_meta"`
 		}{
-			Status:   dev.Status,
-			Proposer: dev.Proposer,
-			Firmware: firmware,
-			URI:      uri,
-			Version:  version,
+			Status:     dev.Status,
+			Proposer:   dev.Proposer,
+			Firmware:   firmware,
+			URI:        uri,
+			Version:    version,
+			ServerMeta: meta.String(),
 		},
 	)
 	return errors.Wrapf(err, "failed to publish device_query response")

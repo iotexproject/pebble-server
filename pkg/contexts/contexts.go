@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 
+	"github.com/xoctopus/confx/confapp"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
 
@@ -25,6 +26,7 @@ type (
 	ctxEcdsaPrivateKey struct{}
 	ctxWhiteList       struct{}
 	ctxLarkAlert       struct{}
+	ctxAppMeta         struct{}
 )
 
 func LoggerFromContext(ctx context.Context) (*logger.Logger, bool) {
@@ -149,5 +151,16 @@ func LarkAlertFromContext(ctx context.Context) (*alert.LarkAlert, bool) {
 func WithLarkAlertContext(v *alert.LarkAlert) contextx.WithContext {
 	return func(ctx context.Context) context.Context {
 		return context.WithValue(ctx, ctxLarkAlert{}, v)
+	}
+}
+
+func AppMetaFromContext(ctx context.Context) (*confapp.Meta, bool) {
+	v, ok := ctx.Value(ctxAppMeta{}).(*confapp.Meta)
+	return v, ok
+}
+
+func WithAppMetaContext(v *confapp.Meta) contextx.WithContext {
+	return func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, ctxAppMeta{}, v)
 	}
 }

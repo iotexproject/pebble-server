@@ -103,7 +103,7 @@ func (e *DeviceData) Handle(ctx context.Context) (err error) {
 
 	// TODO need ?
 	// if dev.Status != models.CONFIRM {
-	// 	return errors.Errorf("require deivce confirmed(2), but got %d", dev.Status)
+	// 	return errors.Errorf("require device confirmed(2), but got %d", dev.Status)
 	// }
 
 	e.addr = common.HexToAddress(dev.Address)

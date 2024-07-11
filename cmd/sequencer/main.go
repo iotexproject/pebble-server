@@ -59,14 +59,15 @@ var (
 )
 
 func init() {
+	meta := confapp.Meta{
+		Name:     Name,
+		Feature:  Feature,
+		Version:  Version,
+		CommitID: CommitID,
+		Date:     Date,
+	}
 	app = confapp.NewAppContext(
-		confapp.WithBuildMeta(confapp.Meta{
-			Name:     Name,
-			Feature:  Feature,
-			Version:  Version,
-			CommitID: CommitID,
-			Date:     Date,
-		}),
+		confapp.WithBuildMeta(meta),
 		confapp.WithMainRoot("."),
 		confapp.WithDefaultConfigGenerator(),
 		confapp.WithMainExecutor(Main),
@@ -88,6 +89,7 @@ func init() {
 		contexts.WithEcdsaPrivateKeyContext(config.PrivateKey),
 		contexts.WithWhiteListKeyContext(config.WhiteList),
 		contexts.WithLarkAlertContext(config.LarkAlert),
+		contexts.WithAppMetaContext(&meta),
 	)(context.Background())
 
 	app.AddCommand(commands.Migrate(ctx))
