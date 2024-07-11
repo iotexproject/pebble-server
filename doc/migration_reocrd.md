@@ -12,6 +12,12 @@
 |            |                             | 350916067070345            |                                                   |
 |            |                             | 351358810283462            |                                                   |
 
+migrate steps:
+
+1. prepare wasm with blacklist(devices in '2024-07-11')
+2. publish wasm and restart old w3bstream
+3. modify new pebble sequencer white list and restart new pebble sequencer(tag v0.2.3)
+
 rollback steps:
 
 1. stop new pebble sequencer
