@@ -64,6 +64,11 @@ func Main() error {
 	d := config.Database
 	l := config.Logger
 
+	subs := map[string]map[string]int64{
+		"prod_device_sub":        {"apply": 0, "sync": 0},
+		"prod_device_record_sub": {"apply": 1, "sync": 0},
+	}
+
 	for {
 		stats := make([]*SubscriptionStat, 0)
 		msg := ""
@@ -73,16 +78,18 @@ func Main() error {
 			goto TryLater
 		}
 		for _, s := range stats {
-			if s.ApplyErrorCount > 0 {
+			if s.ApplyErrorCount > 0 && s.ApplyErrorCount > subs[s.SubName]["apply"] {
 				msg += fmt.Sprintf("%s: apply_error_count: %d\n", s.SubName, s.ApplyErrorCount)
 				l.Info("subscription error", "name", s.SubName, "apply_error_count", s.ApplyErrorCount)
 			}
-			if s.SyncErrorCount > 0 {
+			subs[s.SubName]["apply"] = s.ApplyErrorCount
+			if s.SyncErrorCount > 0 && s.SyncErrorCount > subs[s.SubName]["sync"] {
 				msg += fmt.Sprintf("%s: apply_error_count: %d\n", s.SubName, s.SyncErrorCount)
 				l.Info("subscription error", "name", s.SubName, "sync_error_count", s.SyncErrorCount)
 			}
-			l.Info("subscription", "name", s.SubName, "stat", "ok")
+			subs[s.SubName]["sync"] = s.SyncErrorCount
 		}
+		l.Info("subscription", "result", subs)
 		if len(msg) > 0 {
 			config.LarkAlert.Push("replication error", msg)
 		}
