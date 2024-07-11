@@ -21,7 +21,7 @@ migrate steps:
 rollback steps:
 
 1. stop new pebble sequencer
-2. step1 stop w3bstream
+2. stop w3bstream
 3. rollback wasm blacklist
 4. export migrated device data from new pebble sequencer db
 5. import migrated device data to old w3bstream wasm db
