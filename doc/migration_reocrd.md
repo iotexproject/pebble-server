@@ -1,16 +1,16 @@
 # record pebble device migration
 
-| date       | timestamp(db updated_at)    | imei(s)                    | comment                                           |
-|:-----------|:----------------------------|:---------------------------|:--------------------------------------------------|
-| 2024-07-06 |                             | 103381234567407(simulator) | internal pebble                                   |
-|            |                             | 351358810263647            |                                                   |
-|            |                             | 351358813375182            |                                                   |
-|            |                             | 351358810263514            |                                                   |
-| 2024-07-11 | 2024-07-11 07:00:00(planed) | 350916067079072            | the most active top 5 devices from 07-03 to 07-10 |
-|            |                             | 350916067070162            |                                                   |
-|            |                             | 350916067099906            |                                                   |
-|            |                             | 350916067070345            |                                                   |
-|            |                             | 351358810283462            |                                                   |
+| date       | timestamp(db updated_at)      | imei(s)                    | comment                                           |
+|:-----------|:------------------------------|:---------------------------|:--------------------------------------------------|
+| 2024-07-06 |                               | 103381234567407(simulator) | internal pebble                                   |
+|            |                               | 351358810263647            |                                                   |
+|            |                               | 351358813375182            |                                                   |
+|            |                               | 351358810263514            |                                                   |
+| 2024-07-11 | 2024-07-11 08:30:00(migrated) | 350916067079072            | the most active top 5 devices from 07-03 to 07-10 |
+|            |                               | 350916067070162            |                                                   |
+|            |                               | 350916067099906            |                                                   |
+|            |                               | 350916067070345            |                                                   |
+|            |                               | 351358810283462            |                                                   |
 
 migrate steps:
 
@@ -33,11 +33,11 @@ rollback steps:
 ```shell
 PGPASSWORD=-------- \
 psql -h 35.223.43.49 -U pebble -d pebble -c \
-"\COPY (SELECT * FROM device where updated_at > '2024-07-11 07:00:00' and id in('350916067079072','350916067070162','350916067099906','350916067070345','351358810283462')) TO 'device.csv' CSV HEADER"
+"\COPY (SELECT * FROM device where updated_at > '2024-07-11 08:30:00' and id in('350916067079072','350916067070162','350916067099906','350916067070345','351358810283462')) TO 'device.csv' CSV HEADER"
 
 PGPASSWORD=-------- \
 psql -h 35.223.43.49 -U pebble -d pebble -c \
-"\COPY (SELECT * FROM device_record where updated_at > '2024-07-11 07:00:00' and imei in('350916067079072','350916067070162','350916067099906','350916067070345','351358810283462')) TO 'device_record.csv' CSV HEADER"
+"\COPY (SELECT * FROM device_record where updated_at > '2024-07-11 08:30:00' and imei in('350916067079072','350916067070162','350916067099906','350916067070345','351358810283462')) TO 'device_record.csv' CSV HEADER"
 ```
 
 ## import to 34.172.94.245(w3bstream pebble wasm db)
