@@ -77,12 +77,6 @@ func init() {
 		config.ProjectVersion != "" && config.ProjectID != 0,
 		"project id and version is required",
 	)
-	config.WhiteList = contexts.WhiteList{
-		"103381234567407",
-		"351358810263647",
-		"351358813375182",
-		"351358810263514",
-	}
 
 	ctx = contextx.WithContextCompose(
 		contexts.WithLoggerContext(config.Logger),

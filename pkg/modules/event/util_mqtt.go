@@ -11,6 +11,7 @@ import (
 
 func PublicMqttMessage(ctx context.Context, id, topic string, v any) error {
 	mq := must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
+	l := must.BeTrueV(contexts.LoggerFromContext(ctx))
 	cli, err := mq.NewClient(id, topic)
 	if err != nil {
 		return err
@@ -29,5 +30,6 @@ func PublicMqttMessage(ctx context.Context, id, topic string, v any) error {
 			return err
 		}
 	}
+	l.Info("mqtt published", "topic", topic, "data", v)
 	return cli.Publish(data)
 }

@@ -473,6 +473,10 @@ github.com/xhd2015/xgo/runtime v1.0.40 h1:LaVrX3KcbWwJmV7+IOnM71QsNSCCOdw+ipiRYb
 github.com/xhd2015/xgo/runtime v1.0.40/go.mod h1:9GBQ2SzJCzpD3T+HRN+2C0TUOGv7qIz4s0mad1xJ8Jo=
 github.com/xoctopus/confx v0.0.8 h1:EwnjYWM0vK2st98UImyrZNlm2FmMF8p4ZQRm+nxF1IU=
 github.com/xoctopus/confx v0.0.8/go.mod h1:btNvcOiF1AcMe/ISZRRoBnOr3QHyk57NB1E8uucPc9o=
+github.com/xoctopus/confx v0.0.9 h1:7OMz4sbooqPg4osgDapu9XHzem5SPKStpeCkF8BiXHs=
+github.com/xoctopus/confx v0.0.9/go.mod h1:btNvcOiF1AcMe/ISZRRoBnOr3QHyk57NB1E8uucPc9o=
+github.com/xoctopus/confx v0.1.0 h1:TGV5PmHT6rYJ1S8IQSig9R/+z504mI3Wvk8mmSPSJQg=
+github.com/xoctopus/confx v0.1.0/go.mod h1:btNvcOiF1AcMe/ISZRRoBnOr3QHyk57NB1E8uucPc9o=
 github.com/xoctopus/datatypex v0.0.5 h1:VwXghgCqy7s+S9xTf+71CwZx2HB+lQGf7HDhUDXao+I=
 github.com/xoctopus/datatypex v0.0.5/go.mod h1:iP29lYi0cY+IXbEnIRnMbnuEPWHu2wVDYbBFk1MHrlA=
 github.com/xoctopus/x v0.0.18 h1:j0huBJw775jUWTqweOEbpnzoNXADEo6qISBSQa4m2pM=
