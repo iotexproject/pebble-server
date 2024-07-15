@@ -11,12 +11,19 @@
 |            |                               | 350916067099906            |                                                   |
 |            |                               | 350916067070345            |                                                   |
 |            |                               | 351358810283462            |                                                   |
+| 2024-07-12 | 2024-07-15 01:50:00(migrated) | 351358813281760            | from envrioBLOQ                                   |
+|            |                               | 351358813282131            |                                                   |
+|            |                               | 350916067066608            |                                                   |
+|            |                               | 351358813281992            |                                                   |
+|            |                               | 351358813065718            |                                                   |
+|            |                               | 351358813357594            |                                                   |
 
 migrate steps:
 
 1. prepare wasm with blacklist(devices in '2024-07-11')
 2. publish wasm and restart old w3bstream
-3. modify new pebble sequencer white list and restart new pebble sequencer(tag v0.2.3)
+3. modify new pebble sequencer white list and restart new pebble sequencer(tag
+   v0.2.3)
 
 rollback steps:
 
@@ -33,19 +40,34 @@ rollback steps:
 ```shell
 PGPASSWORD=-------- \
 psql -h 35.223.43.49 -U pebble -d pebble -c \
-"\COPY (SELECT * FROM device where updated_at > '2024-07-11 08:30:00' and id in('350916067079072','350916067070162','350916067099906','350916067070345','351358810283462')) TO 'device.csv' CSV HEADER"
+"\COPY (SELECT * FROM device where updated_at > '2024-07-11 08:30:00' and id in('350916067079072','350916067070162','350916067099906','350916067070345','351358810283462')) TO 'device_0711.csv' CSV HEADER"
 
 PGPASSWORD=-------- \
 psql -h 35.223.43.49 -U pebble -d pebble -c \
-"\COPY (SELECT * FROM device_record where updated_at > '2024-07-11 08:30:00' and imei in('350916067079072','350916067070162','350916067099906','350916067070345','351358810283462')) TO 'device_record.csv' CSV HEADER"
+"\COPY (SELECT * FROM device where updated_at > '2024-07-15 01:50:00' and id in('351358813281760','351358813282131','350916067066608','351358813281992','351358813065718','351358813357594')) TO 'device_0715.csv' CSV HEADER"
+
+
+PGPASSWORD=-------- \
+psql -h 35.223.43.49 -U pebble -d pebble -c \
+"\COPY (SELECT * FROM device_record where updated_at > '2024-07-11 08:30:00' and imei in('350916067079072','350916067070162','350916067099906','350916067070345','351358810283462')) TO 'device_record_0711.csv' CSV HEADER"
+
+PGPASSWORD=-------- \
+psql -h 35.223.43.49 -U pebble -d pebble -c \
+"\COPY (SELECT * FROM device_record where updated_at > '2024-07-15 01:50:00' and id in('351358813281760','351358813282131','350916067066608','351358813281992','351358813065718','351358813357594')) TO 'device_record_0715.csv' CSV HEADER"
 ```
 
 ## import to 34.172.94.245(w3bstream pebble wasm db)
 
 ```shell
 PGPASSWORD=-------- \
-psql -h 34.172.94.245 -U w3bstream -d w3b_1456942923637714945 -c "\COPY device FROM 'device.csv' CSV HEADER"
+psql -h 34.172.94.245 -U w3bstream -d w3b_1456942923637714945 -c "\COPY device FROM 'device_0711.csv' CSV HEADER"
 
 PGPASSWORD=-------- \
-psql -h 34.172.94.245 -U w3bstream -d w3b_1456942923637714945 -c "\COPY device_record FROM 'device_record.csv' CSV HEADER"
+psql -h 34.172.94.245 -U w3bstream -d w3b_1456942923637714945 -c "\COPY device FROM 'device_0715.csv' CSV HEADER"
+
+PGPASSWORD=-------- \
+psql -h 34.172.94.245 -U w3bstream -d w3b_1456942923637714945 -c "\COPY device_record FROM 'device_record_0711.csv' CSV HEADER"
+
+PGPASSWORD=-------- \
+psql -h 34.172.94.245 -U w3bstream -d w3b_1456942923637714945 -c "\COPY device_record FROM 'device_record_0715.csv' CSV HEADER"
 ```
