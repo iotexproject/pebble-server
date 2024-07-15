@@ -137,6 +137,7 @@ func (m *Monitor) run(ctx context.Context) {
 		FromBlock: new(big.Int),
 		ToBlock:   new(big.Int),
 	}
+	step := uint64(1000)
 	for {
 		select {
 		case <-ctx.Done():
@@ -164,7 +165,7 @@ func (m *Monitor) run(ctx context.Context) {
 		if from >= current {
 			goto TryLater
 		}
-		to = min(current, from+100000)
+		to = min(current, from+step)
 		filter.FromBlock.SetUint64(from)
 		filter.ToBlock.SetUint64(to)
 		results, err = m.client.FilterLogs(ctx, filter)

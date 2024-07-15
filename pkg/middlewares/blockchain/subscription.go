@@ -71,6 +71,7 @@ func (w *watcher) fields(others ...any) []any {
 }
 
 func (w *watcher) run(ctx context.Context) {
+	step := uint64(1000)
 	for {
 		select {
 		case <-ctx.Done():
@@ -97,7 +98,7 @@ func (w *watcher) run(ctx context.Context) {
 		if from >= current {
 			goto TryLater
 		}
-		to = min(current, from+100000)
+		to = min(current, from+step)
 		results, err = w.persist.QueryTxByHeightRange(w.meta, from, to)
 		if err != nil {
 			goto Failed
