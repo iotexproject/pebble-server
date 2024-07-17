@@ -162,6 +162,7 @@ func (m *Monitor) run(ctx context.Context) {
 		if err != nil {
 			goto TryLater
 		}
+		current -= 1
 		if from >= current {
 			goto TryLater
 		}

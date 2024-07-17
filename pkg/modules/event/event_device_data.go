@@ -133,14 +133,20 @@ func (e *DeviceData) handleConfig(ctx context.Context, dev *models.Device, pkg *
 	dev.Beep = int32(pkg.GetBeep())
 	dev.RealFirmware = pkg.GetFirmware()
 	dev.Configurable = pkg.GetDeviceConfigurable()
-	dev.OperationTimes = models.NewOperationTimes()
+	dev.UpdatedAt = time.Now()
 
-	_, err := UpsertOnConflict(ctx, dev, "id",
-		"bulk_upload", "data_channel", "upload_period",
-		"bulk_upload_sampling_cnt", "bulk_upload_sampling_freq",
-		"beep", "real_firmware", "configurable", "updated_at",
-	)
-	return errors.Wrapf(err, "failed to upsert senser config: %s", dev.ID)
+	err := UpdateByPrimary(ctx, dev, map[string]any{
+		"bulk_upload":               dev.BulkUpload,
+		"data_channel":              dev.DataChannel,
+		"upload_period":             dev.UploadPeriod,
+		"bulk_upload_sampling_cnt":  dev.BulkUploadSamplingCnt,
+		"bulk_upload_sampling_freq": dev.BulkUploadSamplingFreq,
+		"beep":                      dev.Beep,
+		"real_firmware":             dev.RealFirmware,
+		"configurable":              dev.Configurable,
+		"updated_at":                dev.UpdatedAt,
+	})
+	return errors.Wrapf(err, "failed to upsert device config: %s", dev.ID)
 }
 
 func (e *DeviceData) handleState(ctx context.Context, dev *models.Device, pkg *pebblepb.SensorState) error {
@@ -163,7 +169,7 @@ func (e *DeviceData) handleSensor(ctx context.Context, dev *models.Device, pkg *
 		snr, _ = big.NewFloat((snr-700)*0.0375 + 25).Float64()
 	}
 
-	vbat := float64(pkg.GetVbat()) - 320/90
+	vbat := (float64(pkg.GetVbat()) - 320) / 90
 	if vbat > 1 {
 		vbat = 100
 	} else if vbat < 0.1 {
