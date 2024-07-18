@@ -20,14 +20,14 @@ func PublicMqttMessage(ctx context.Context, tpe, topic string, v any) error {
 	}
 	defer mq.Close(cli)
 
-	var data any
-	switch v.(type) {
+	var data []byte
+	switch _v := v.(type) {
 	case string:
-		data = v
+		data = []byte(_v)
 	case []byte:
-		data = v
+		data = _v
 	default:
-		data, err = json.Marshal(v)
+		data, err = json.Marshal(_v)
 		if err != nil {
 			return err
 		}
