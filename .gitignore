@@ -4,4 +4,6 @@ cmd/sequencer/config/local.yml
 cmd/sequencer/project.json
 cmd/replication/config/local.yml
 cmd/replication/replication-monitor
+cmd/simulator/config/local.yml
+cmd/simulator/simulator
 
