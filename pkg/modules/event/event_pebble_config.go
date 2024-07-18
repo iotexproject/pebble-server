@@ -59,10 +59,10 @@ func (e *PebbleConfig) Handle(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to fetch app_v2: %s", app.ID)
 	}
 
-	err = PublicMqttMessage(ctx,
-		"pebble_config",
-		"backend/"+e.Imei+"/config",
-		app.Data,
+	pubType := "PebbleConfig"
+	pubData := app.Data
+	return errors.Wrapf(
+		PublicMqttMessage(ctx, pubType, "backend/"+e.Imei+"/config", pubData),
+		"failed to publish %s", pubType,
 	)
-	return errors.Wrap(err, "failed to publish pebble_config response")
 }

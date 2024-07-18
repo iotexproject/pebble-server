@@ -56,21 +56,22 @@ func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 	}
 
 	meta, _ := contexts.AppMetaFromContext(ctx)
-	err = PublicMqttMessage(ctx,
-		"firmware_updated", "device/app_update/"+app.ID,
-		&struct {
-			Name       string `json:"name"`
-			Version    string `json:"version"`
-			Uri        string `json:"uri"`
-			Avatar     string `json:"avatar"`
-			ServerMeta string `json:"meta"`
-		}{
-			Name:       app.ID,
-			Version:    app.Version,
-			Uri:        app.Uri,
-			Avatar:     app.Avatar,
-			ServerMeta: meta.String(),
-		},
+	pubType := "FirmwareUpdated"
+	pubData := &struct {
+		Name       string `json:"name"`
+		Version    string `json:"version"`
+		Uri        string `json:"uri"`
+		Avatar     string `json:"avatar"`
+		ServerMeta string `json:"meta"`
+	}{
+		Name:       app.ID,
+		Version:    app.Version,
+		Uri:        app.Uri,
+		Avatar:     app.Avatar,
+		ServerMeta: meta.String(),
+	}
+	return errors.Wrapf(
+		PublicMqttMessage(ctx, pubType, "device/app_update/"+app.ID, pubData),
+		"failed to publish %s", pubType,
 	)
-	return errors.Wrap(err, "failed to publish firmware_updated response")
 }

@@ -11,7 +11,7 @@ import (
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 )
 
-func PublicMqttMessage(ctx context.Context, id, topic string, v any) error {
+func PublicMqttMessage(ctx context.Context, tpe, topic string, v any) error {
 	mq := must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
 	l := must.BeTrueV(contexts.LoggerFromContext(ctx))
 	cli, err := mq.NewClient(uuid.NewString(), topic)
@@ -21,7 +21,7 @@ func PublicMqttMessage(ctx context.Context, id, topic string, v any) error {
 	defer mq.Close(cli)
 
 	var data any
-	switch data.(type) {
+	switch v.(type) {
 	case string:
 		data = v
 	case []byte:
@@ -34,8 +34,7 @@ func PublicMqttMessage(ctx context.Context, id, topic string, v any) error {
 	}
 	if err = cli.Publish(data); err != nil {
 		err = errors.Wrap(err, "failed to publish mqtt")
-		l.Error(err, "client_id", id, "topic", topic, "data", v)
-		return err
 	}
+	l.Info("mqtt published", "type", tpe, "topic", topic, "data", v, "result", err)
 	return nil
 }
