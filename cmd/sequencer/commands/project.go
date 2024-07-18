@@ -22,21 +22,15 @@ func NewDefaultSproutConfigGenerator() *SproutConfigGenerator {
 		Network:     "mainnet",
 		OutputPath:  ".",
 		WasmVersion: "v0.0.1",
-
-		MultiLangHelper: confcmd.NewDefaultMultiLangHelper(),
-		FlagSet:         confcmd.NewFlagSet(),
 	}
 }
 
 type SproutConfigGenerator struct {
-	Network     string `         help.en:"iotx network testnet or mainnet"`
-	OutputPath  string `         help.en:"config file output path"`
-	WasmVersion string `         help.en:"wasm version"`
-	WasmPath    string `cmd:",r" help.en:"wasm code path"`
-	DataSource  string `cmd:",r" help.en:"project datasource"`
-
-	*confcmd.MultiLangHelper
-	*confcmd.FlagSet
+	Network     string `               help:"iotx network testnet or mainnet"`
+	OutputPath  string `               help:"config file output path"`
+	WasmVersion string `               help:"wasm version"`
+	WasmPath    string `cmd:",require" help:"wasm code path"`
+	DataSource  string `cmd:",require" help:"project datasource"`
 }
 
 var _ confcmd.Executor = (*SproutConfigGenerator)(nil)
