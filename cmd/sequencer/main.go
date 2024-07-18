@@ -102,6 +102,7 @@ func Main() error {
 	blockchain.SetLogger(config.Logger)
 	if err := config.Blockchain.RunMonitor(); err != nil {
 		config.Logger.Error(err, "failed to start tx monitor")
+		return err
 	}
 	event.InitRunner(ctx)()
 	defer config.Blockchain.Close()
