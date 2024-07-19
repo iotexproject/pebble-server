@@ -63,7 +63,7 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 	}
 
 	meta := contexts.AppMetaFromContext(ctx)
-	pubType := "pub_DeviceQuery_" + meta
+	pubType := "pub_DeviceQuery_"
 	pubData := &struct {
 		Status     int32  `json:"status"`
 		Proposer   string `json:"proposer,omitempty"`

@@ -56,7 +56,7 @@ func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 	}
 
 	meta := contexts.AppMetaFromContext(ctx)
-	pubType := "pub_FirmwareUpdated_" + meta
+	pubType := "pub_FirmwareUpdated_"
 	pubData := &struct {
 		Name       string `json:"name"`
 		Version    string `json:"version"`

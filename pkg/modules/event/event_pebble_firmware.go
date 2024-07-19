@@ -64,7 +64,7 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 	}
 
 	meta := contexts.AppMetaFromContext(ctx)
-	pubType := "pub_PebbleFirmware_" + meta
+	pubType := "pub_PebbleFirmware_"
 	pubData := &struct {
 		Firmware   string `json:"firmware"`
 		Uri        string `json:"uri"`

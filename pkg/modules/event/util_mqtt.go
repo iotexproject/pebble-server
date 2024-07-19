@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
 
@@ -13,10 +14,11 @@ import (
 func PublicMqttMessage(ctx context.Context, id, topic string, v any) error {
 	mq := must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
 	l := must.BeTrueV(contexts.LoggerFromContext(ctx))
-	cli, err := mq.NewClient(id, topic)
+	cli, err := mq.NewClient(id+uuid.NewString(), topic)
 	if err != nil {
 		return err
 	}
+	defer mq.Close(cli)
 
 	var data []byte
 	switch _v := v.(type) {
