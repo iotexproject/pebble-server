@@ -57,7 +57,7 @@ func Main() error {
 		return nil
 	}
 
-	clients := make([]string, 0, len(config.Devices)*2)
+	clients := make([]*confmqtt.Client, 0, len(config.Devices)*2)
 
 	for _, imei := range config.Devices {
 		go func(imei string) {
@@ -69,8 +69,8 @@ func Main() error {
 	signal.Notify(sig, os.Interrupt)
 	_ = <-sig
 
-	for _, clientID := range clients {
-		config.MqttBroker.CloseByClientID(clientID)
+	for _, c := range clients {
+		config.MqttBroker.Close(c)
 	}
 
 	return nil
@@ -83,16 +83,16 @@ func main() {
 	os.Exit(-1)
 }
 
-func PubSubQuery(imei string) []string {
+func PubSubQuery(imei string) []*confmqtt.Client {
 	broker := config.MqttBroker
 	logger := config.Logger
-	clients := make([]string, 2)
+	clients := make([]*confmqtt.Client, 2)
 
 	{
 		topic := "backend/+/status"
 		client, err := broker.NewClient("sub_backend_status_simulator", topic)
 		must.NoErrorWrap(err, "failed to new sub mqtt client: [topic %s]", topic)
-		clients[1] = client.ID()
+		clients[1] = client
 		sequence := 0
 		err = client.Subscribe(func(_ mqtt.Client, message mqtt.Message) {
 			if parts := strings.Split(message.Topic(), "/"); len(parts) != 3 || parts[1] != imei {
@@ -127,7 +127,7 @@ func PubSubQuery(imei string) []string {
 		client, err := broker.NewClient(imei+"_"+uuid.NewString(), topic)
 		must.NoErrorWrap(err, "failed to new pub mqtt client: [topic %s]", topic)
 
-		clients[0] = client.ID()
+		clients[0] = client
 		logger.Info("publishing started", "topic", topic)
 		sequence := 0
 		for {
