@@ -77,12 +77,12 @@ PEBBLE_SEQUENCER__LarkAlert_Env: PROD
 PEBBLE_SEQUENCER__LarkAlert_Project: pebble-sequencer
 PEBBLE_SEQUENCER__LarkAlert_Secret: ""
 PEBBLE_SEQUENCER__LarkAlert_URL: ""
-PEBBLE_SEQUENCER__LarkAlert_Version: v0.2.7-1-g1cbe1ed
+PEBBLE_SEQUENCER__LarkAlert_Version: ""
 PEBBLE_SEQUENCER__Logger_Level: DEBUG
 PEBBLE_SEQUENCER__MqttBroker_Cert_CA: ""
 PEBBLE_SEQUENCER__MqttBroker_Cert_Crt: ""
 PEBBLE_SEQUENCER__MqttBroker_Cert_Key: ""
-PEBBLE_SEQUENCER__MqttBroker_Keepalive: "3000000000"
+PEBBLE_SEQUENCER__MqttBroker_Keepalive: "60000000000"
 PEBBLE_SEQUENCER__MqttBroker_QoS: ONCE
 PEBBLE_SEQUENCER__MqttBroker_RetainPublish: "false"
 PEBBLE_SEQUENCER__MqttBroker_Retry_Interval: "3000000000"

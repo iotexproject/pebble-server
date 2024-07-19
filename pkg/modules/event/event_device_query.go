@@ -62,8 +62,8 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 		version = app.Version
 	}
 
-	meta, _ := contexts.AppMetaFromContext(ctx)
-	pubType := "DeviceQuery"
+	meta := contexts.AppMetaFromContext(ctx)
+	pubType := "pub_DeviceQuery_" + meta
 	pubData := &struct {
 		Status     int32  `json:"status"`
 		Proposer   string `json:"proposer,omitempty"`
@@ -77,7 +77,7 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 		Firmware:   firmware,
 		URI:        uri,
 		Version:    version,
-		ServerMeta: meta.String(),
+		ServerMeta: meta,
 	}
 	return errors.Wrapf(
 		PublicMqttMessage(ctx, pubType, "backend/"+e.imei+"/status", pubData),

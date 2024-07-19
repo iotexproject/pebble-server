@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
@@ -88,12 +89,16 @@ func PubSubQuery(imei string) []string {
 	clients := make([]string, 2)
 
 	{
-		topic := "backend/" + imei + "/status"
-		client, err := broker.NewClient(uuid.NewString(), topic)
+		topic := "backend/+/status"
+		client, err := broker.NewClient("sub_backend_status_simulator", topic)
 		must.NoErrorWrap(err, "failed to new sub mqtt client: [topic %s]", topic)
 		clients[1] = client.ID()
 		sequence := 0
 		err = client.Subscribe(func(_ mqtt.Client, message mqtt.Message) {
+			if parts := strings.Split(message.Topic(), "/"); len(parts) != 3 || parts[1] != imei {
+				return
+			}
+
 			rsp := &struct {
 				Status     int32  `json:"status"`
 				Proposer   string `json:"proposer,omitempty"`
@@ -119,7 +124,7 @@ func PubSubQuery(imei string) []string {
 
 	go func() {
 		topic := "device/" + imei + "/query"
-		client, err := broker.NewClient(uuid.NewString(), topic)
+		client, err := broker.NewClient(imei+"_"+uuid.NewString(), topic)
 		must.NoErrorWrap(err, "failed to new pub mqtt client: [topic %s]", topic)
 
 		clients[0] = client.ID()
@@ -133,7 +138,7 @@ func PubSubQuery(imei string) []string {
 				logger.Info("pub", "seq", sequence, "topic", topic)
 				sequence++
 			}
-			time.Sleep(time.Second * 5)
+			time.Sleep(time.Second * 15)
 		}
 	}()
 

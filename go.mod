@@ -15,7 +15,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	github.com/xhd2015/xgo/runtime v1.0.45
-	github.com/xoctopus/confx v0.1.2
+	github.com/xoctopus/confx v0.1.5
 	github.com/xoctopus/datatypex v0.0.7
 	github.com/xoctopus/x v0.0.20
 	golang.org/x/crypto v0.25.0

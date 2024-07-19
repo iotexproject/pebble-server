@@ -7,6 +7,7 @@ import (
 	"github.com/xoctopus/confx/confapp"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
+	"github.com/xoctopus/x/ptrx"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/alert"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
@@ -137,6 +138,11 @@ func CheckDeviceWhiteListFromContext(ctx context.Context, imei string) bool {
 	return v.NeedHandle(imei)
 }
 
+func WhiteListFromContext(ctx context.Context) (WhiteList, bool) {
+	v, ok := ctx.Value(ctxWhiteList{}).(WhiteList)
+	return v, ok
+}
+
 func WithWhiteListKeyContext(v WhiteList) contextx.WithContext {
 	return func(ctx context.Context) context.Context {
 		return context.WithValue(ctx, ctxWhiteList{}, v)
@@ -154,9 +160,12 @@ func WithLarkAlertContext(v *alert.LarkAlert) contextx.WithContext {
 	}
 }
 
-func AppMetaFromContext(ctx context.Context) (*confapp.Meta, bool) {
+func AppMetaFromContext(ctx context.Context) string {
 	v, ok := ctx.Value(ctxAppMeta{}).(*confapp.Meta)
-	return v, ok
+	if !ok {
+		v = ptrx.Ptr(confapp.DefaultMeta)
+	}
+	return v.Name + "_" + v.Feature + "_" + v.Version
 }
 
 func WithAppMetaContext(v *confapp.Meta) contextx.WithContext {
