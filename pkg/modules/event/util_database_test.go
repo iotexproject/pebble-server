@@ -48,11 +48,11 @@ func testctx() context.Context {
 	}
 
 	ctx := contextx.WithContextCompose(
-		contexts.WithDatabaseContext(d),
-		contexts.WithProjectIDContext(1),
-		contexts.WithProjectVersionContext("v0.0.1"),
-		contexts.WithMqttBrokerContext(mq),
-		contexts.WithEcdsaPrivateKeyContext(sk),
+		contexts.Database().Compose(d),
+		contexts.ProjectID().Compose(1),
+		contexts.ProjectVersion().Compose("v0.0.1"),
+		contexts.MqttBroker().Compose(mq),
+		contexts.PrivateKey().Compose(sk),
 	)(context.Background())
 
 	if _, err := event.UpsertOnConflict(ctx, &models.Device{
@@ -118,7 +118,7 @@ func TestDatabaseOperations(t *testing.T) {
 	r.NoError(d.Init())
 
 	ctx := contextx.WithContextCompose(
-		contexts.WithDatabaseContext(d),
+		contexts.Database().Compose(d),
 	)(context.Background())
 
 	t.Run("UpsertOnConflict", func(t *testing.T) {
