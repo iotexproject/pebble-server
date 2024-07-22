@@ -3,14 +3,13 @@ package event
 import (
 	"context"
 
-	"github.com/xoctopus/x/misc/must"
 	"gorm.io/gorm/clause"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 )
 
 func UpsertOnConflict(ctx context.Context, m any, conflict string, updates ...string) (any, error) {
-	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
+	db := contexts.Database().MustFrom(ctx)
 
 	cond := clause.OnConflict{
 		Columns: []clause.Column{{Name: conflict}},
@@ -28,12 +27,12 @@ func UpsertOnConflict(ctx context.Context, m any, conflict string, updates ...st
 }
 
 func DeleteByPrimary(ctx context.Context, m any) error {
-	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
+	db := contexts.Database().MustFrom(ctx)
 	return db.Delete(m).Error
 }
 
 func UpdateByPrimary(ctx context.Context, m any, fields map[string]any) error {
-	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
+	db := contexts.Database().MustFrom(ctx)
 	if err := db.Model(m).Updates(fields).Error; err != nil {
 		return err
 	}
@@ -41,6 +40,6 @@ func UpdateByPrimary(ctx context.Context, m any, fields map[string]any) error {
 }
 
 func FetchByPrimary(ctx context.Context, m any) error {
-	db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
+	db := contexts.Database().MustFrom(ctx)
 	return db.First(m).Error
 }

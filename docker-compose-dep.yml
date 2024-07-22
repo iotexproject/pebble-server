@@ -8,7 +8,7 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./build/mqtt-dep:/mosquitto/data
+      - ./build/dep/mqtt:/mosquitto/data
 
   postgres:
     image: postgres:13
@@ -24,6 +24,16 @@ services:
       POSTGRES_PASSWORD: "passwd"
       POSTGRES_DB: "pebble"
     volumes:
-      - ./build/postgres-dep:/var/lib/postgresql/data
+      - ./build/dep/postgres:/var/lib/postgresql/data
     ports:
       - "5432:5432"
+
+  clickhouse:
+    image: yandex/clickhouse-server:latest
+    platform: linux/amd64
+    container_name: clickhouse
+    ports:
+      - "8123:8123"  # http
+      - "9000:9000"  # tcp
+    volumes:
+      - ./build/dep/clickhouse:/var/lib/clickhouse

@@ -18,7 +18,7 @@ require (
 	github.com/xhd2015/xgo/runtime v1.0.45
 	github.com/xoctopus/confx v0.1.5
 	github.com/xoctopus/datatypex v0.0.7
-	github.com/xoctopus/x v0.0.22
+	github.com/xoctopus/x v0.0.23
 	golang.org/x/crypto v0.25.0
 	google.golang.org/protobuf v1.34.2
 	gorm.io/datatypes v1.2.1

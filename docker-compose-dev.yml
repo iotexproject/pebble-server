@@ -8,7 +8,7 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./build/mqtt-dev:/mosquitto/data
+      - ./build/dev/mqtt:/mosquitto/data
 
   postgres:
     image: postgres:13
@@ -24,28 +24,19 @@ services:
       POSTGRES_PASSWORD: "passwd"
       POSTGRES_DB: "pebble"
     volumes:
-      - ./build/postgres-dev:/var/lib/postgresql/data
+      - ./build/dev/postgres:/var/lib/postgresql/data
     ports:
       - "5432:5432"
 
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    restart: always
+  clickhouse:
+    image: yandex/clickhouse-server:latest
+    platform: linux/amd64
+    container_name: clickhouse
     ports:
-      - "9090:9090"
+      - "8123:8123"  # http
+      - "9000:9000"  # tcp
     volumes:
-      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
-      - "./build/prometheus-dev:/prometheus"
-
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    restart: always
-    ports:
-      - "3000:3000"
-    volumes:
-      - "./build/grafana-dev:/var/lib/grafana"
+      - ./build/dev/clickhouse:/var/lib/clickhouse
 
   pebble-sequencer:
     image: ghcr.io/machinefi/pebble-sequencer:latest
@@ -60,12 +51,12 @@ services:
     ports:
       - "80:80"
     environment:
-      PEBBLE_SEQUENCER__Blockchain_PersistPath: /data/pebbletx
+      PEBBLE_SEQUENCER__Blockchain_PersistPath: /data
       PEBBLE_SEQUENCER__Database_Endpoint: postgres://test:passwd@postgres:5432/pebble?sslmode=disable
       PEBBLE_SEQUENCER__MqttBroker_Server: tcp://mqtt:1883
       PEBBLE_SEQUENCER__ProjectID: 100
       PEBBLE_SEQUENCER__ProjectVersion: v0.0.1
       PEBBLE_SEQUENCER__Blockchain_Network: IOTX_TESTNET
     volumes:
-      - ./build/tx-dev:/data
+      - ./build/dev/pebble-sequencer:/data
 

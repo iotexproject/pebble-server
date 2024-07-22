@@ -6,14 +6,17 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/xoctopus/x/misc/must"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 )
 
 func PublicMqttMessage(ctx context.Context, id, topic string, v any) error {
-	mq := must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
-	l := must.BeTrueV(contexts.LoggerFromContext(ctx))
+	if ok, _ := contexts.DryRun().From(ctx); ok {
+		return nil
+	}
+
+	mq := contexts.MqttBroker().MustFrom(ctx)
+	l := contexts.Logger().MustFrom(ctx)
 	cli, err := mq.NewClient(id+uuid.NewString(), topic)
 	if err != nil {
 		return err

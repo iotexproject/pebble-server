@@ -30,6 +30,7 @@ var (
 
 	app    *confapp.AppCtx
 	config = &struct {
+		DryRun         bool
 		MqttBroker     *confmqtt.Broker
 		Database       *database.Postgres
 		Blockchain     *blockchain.Blockchain
@@ -40,6 +41,7 @@ var (
 		WhiteList      contexts.WhiteList
 		LarkAlert      *alert.LarkAlert
 	}{
+		DryRun:     false,
 		Logger:     &logger.Logger{Level: slog.LevelDebug},
 		Blockchain: &blockchain.Blockchain{Contracts: contracts},
 		MqttBroker: &confmqtt.Broker{},
@@ -79,16 +81,16 @@ func init() {
 	)
 
 	ctx = contextx.WithContextCompose(
-		contexts.WithLoggerContext(config.Logger),
-		contexts.WithBlockchainContext(config.Blockchain),
-		contexts.WithDatabaseContext(config.Database),
-		contexts.WithMqttBrokerContext(config.MqttBroker),
-		contexts.WithProjectIDContext(config.ProjectID),
-		contexts.WithProjectVersionContext(config.ProjectVersion),
-		contexts.WithEcdsaPrivateKeyContext(config.PrivateKey),
-		contexts.WithWhiteListKeyContext(config.WhiteList),
-		contexts.WithLarkAlertContext(config.LarkAlert),
-		contexts.WithAppMetaContext(&meta),
+		contexts.Logger().Compose(config.Logger),
+		contexts.Blockchain().Compose(config.Blockchain),
+		contexts.Database().Compose(config.Database),
+		contexts.MqttBroker().Compose(config.MqttBroker),
+		contexts.ProjectID().Compose(config.ProjectID),
+		contexts.ProjectVersion().Compose(config.ProjectVersion),
+		contexts.PrivateKey().Compose(config.PrivateKey),
+		contexts.IMEIFilter().Compose(config.WhiteList),
+		contexts.LarkAlert().Compose(config.LarkAlert),
+		contexts.AppMeta().Compose(&meta),
 	)(context.Background())
 
 	app.AddCommand(commands.Migrate(ctx))

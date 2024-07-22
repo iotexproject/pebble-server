@@ -1,9 +1,6 @@
 package contexts
 
 import (
-	"context"
-	"crypto/ecdsa"
-
 	"github.com/xoctopus/confx/confapp"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
@@ -16,160 +13,28 @@ import (
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/logger"
 )
 
-type (
-	ctxLogger          struct{}
-	ctxMqttBroker      struct{}
-	ctxMqttClient      struct{}
-	ctxBlockchain      struct{}
-	ctxDatabase        struct{}
-	ctxProjectID       struct{}
-	ctxProjectVersion  struct{}
-	ctxEcdsaPrivateKey struct{}
-	ctxWhiteList       struct{}
-	ctxLarkAlert       struct{}
-	ctxAppMeta         struct{}
+var (
+	_dryRun         = contextx.NewValue(false)
+	_appMeta        = contextx.NewValue(ptrx.Ptr(confapp.DefaultMeta))
+	_larkAlert      = contextx.New[*alert.LarkAlert]()
+	_whiteList      = contextx.New[WhiteList]()
+	_privateKey     = contextx.New[*crypto.EcdsaPrivateKey]()
+	_projectID      = contextx.New[uint64]()
+	_projectVersion = contextx.New[string]()
+	_database       = contextx.New[*database.Postgres]()
+	_blockchain     = contextx.New[*blockchain.Blockchain]()
+	_mqttBroker     = contextx.New[*confmqtt.Broker]()
+	_logger         = contextx.New[*logger.Logger]()
 )
 
-func LoggerFromContext(ctx context.Context) (*logger.Logger, bool) {
-	v, ok := ctx.Value(ctxLogger{}).(*logger.Logger)
-	return v, ok
-}
-
-func WithLoggerContext(v *logger.Logger) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxLogger{}, v)
-	}
-}
-
-func MqttBrokerFromContext(ctx context.Context) (*confmqtt.Broker, bool) {
-	v, ok := ctx.Value(ctxMqttBroker{}).(*confmqtt.Broker)
-	return v, ok
-}
-
-func WithMqttBrokerContext(v *confmqtt.Broker) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxMqttBroker{}, v)
-	}
-}
-
-func MqttClientFromContext(ctx context.Context) (*confmqtt.Client, bool) {
-	v, ok := ctx.Value(ctxMqttClient{}).(*confmqtt.Client)
-	return v, ok
-}
-
-func WithMqttClientContext(v *confmqtt.Client) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxMqttClient{}, v)
-	}
-}
-
-func BlockchainFromContext(ctx context.Context) (*blockchain.Blockchain, bool) {
-	v, ok := ctx.Value(ctxBlockchain{}).(*blockchain.Blockchain)
-	return v, ok
-}
-
-func EthClientFromContextByNetwork(ctx context.Context) (*blockchain.EthClient, bool) {
-	v, ok := ctx.Value(ctxBlockchain{}).(*blockchain.Blockchain)
-	if !ok {
-		return nil, false
-	}
-	c := v.ClientByNetwork()
-	return c, c != nil
-}
-
-func WithBlockchainContext(v *blockchain.Blockchain) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxBlockchain{}, v)
-	}
-}
-
-func DatabaseFromContext(ctx context.Context) (*database.Postgres, bool) {
-	v, ok := ctx.Value(ctxDatabase{}).(*database.Postgres)
-	return v, ok
-}
-
-func WithDatabaseContext(v *database.Postgres) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxDatabase{}, v)
-	}
-}
-
-func ProjectIDFromContext(ctx context.Context) (uint64, bool) {
-	v, ok := ctx.Value(ctxProjectID{}).(uint64)
-	return v, ok
-}
-
-func WithProjectIDContext(v uint64) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxProjectID{}, v)
-	}
-}
-
-func ProjectVersionFromContext(ctx context.Context) (string, bool) {
-	v, ok := ctx.Value(ctxProjectVersion{}).(string)
-	return v, ok
-}
-
-func WithProjectVersionContext(v string) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxProjectVersion{}, v)
-	}
-}
-
-func EcdsaPrivateKeyFromContext(ctx context.Context) (*ecdsa.PrivateKey, bool) {
-	v, ok := ctx.Value(ctxEcdsaPrivateKey{}).(*crypto.EcdsaPrivateKey)
-	if !ok {
-		return nil, false
-	}
-	return v.PrivateKey, ok
-}
-
-func WithEcdsaPrivateKeyContext(v *crypto.EcdsaPrivateKey) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxEcdsaPrivateKey{}, v)
-	}
-}
-
-func CheckDeviceWhiteListFromContext(ctx context.Context, imei string) bool {
-	v, ok := ctx.Value(ctxWhiteList{}).(WhiteList)
-	if !ok {
-		return true
-	}
-	return v.NeedHandle(imei)
-}
-
-func WhiteListFromContext(ctx context.Context) (WhiteList, bool) {
-	v, ok := ctx.Value(ctxWhiteList{}).(WhiteList)
-	return v, ok
-}
-
-func WithWhiteListKeyContext(v WhiteList) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxWhiteList{}, v)
-	}
-}
-
-func LarkAlertFromContext(ctx context.Context) (*alert.LarkAlert, bool) {
-	v, ok := ctx.Value(ctxLarkAlert{}).(*alert.LarkAlert)
-	return v, ok
-}
-
-func WithLarkAlertContext(v *alert.LarkAlert) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxLarkAlert{}, v)
-	}
-}
-
-func AppMetaFromContext(ctx context.Context) string {
-	v, ok := ctx.Value(ctxAppMeta{}).(*confapp.Meta)
-	if !ok {
-		v = ptrx.Ptr(confapp.DefaultMeta)
-	}
-	return v.Name + "_" + v.Feature + "_" + v.Version
-}
-
-func WithAppMetaContext(v *confapp.Meta) contextx.WithContext {
-	return func(ctx context.Context) context.Context {
-		return context.WithValue(ctx, ctxAppMeta{}, v)
-	}
-}
+func DryRun() contextx.Context[bool]                        { return _dryRun }
+func AppMeta() contextx.Context[*confapp.Meta]              { return _appMeta }
+func LarkAlert() contextx.Context[*alert.LarkAlert]         { return _larkAlert }
+func IMEIFilter() contextx.Context[WhiteList]               { return _whiteList }
+func PrivateKey() contextx.Context[*crypto.EcdsaPrivateKey] { return _privateKey }
+func ProjectID() contextx.Context[uint64]                   { return _projectID }
+func ProjectVersion() contextx.Context[string]              { return _projectVersion }
+func Database() contextx.Context[*database.Postgres]        { return _database }
+func Blockchain() contextx.Context[*blockchain.Blockchain]  { return _blockchain }
+func MqttBroker() contextx.Context[*confmqtt.Broker]        { return _mqttBroker }
+func Logger() contextx.Context[*logger.Logger]              { return _logger }

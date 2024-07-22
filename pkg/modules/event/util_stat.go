@@ -1,12 +1,15 @@
 package event
 
 import (
+	"context"
+	"fmt"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/xoctopus/x/misc/stringsx"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
 
 var (
@@ -63,4 +66,15 @@ func stat(v Event, e error, cost time.Duration) {
 		mtcSucceededEvent.WithLabelValues(source, topic).Inc()
 	}
 	mtcEventHandlingCost.WithLabelValues(source, topic).Observe(float64(cost.Milliseconds()))
+}
+
+// submit customized metrics to clickhouse(maybe deprecated)
+func submit(ctx context.Context, r *models.DeviceRecord) {
+	_ = r.Longitude
+	_ = r.Latitude
+	_ = fmt.Sprintf(`{"longitude":%s,"latitude":%s}`, r.Longitude, r.Latitude)
+	// INSERT INTO ws_metrics.auto_collect_metrics VALUES (now(),'%s','%s','%s','%s')
+	// account_id, project_name, publish_key, {"longitude": lon,"latitude": lat}
+	// INSERT INTO ws_metrics.customized_metrics VALUES (now(), '%s','%s','%s')
+	// account_id, project_name,
 }

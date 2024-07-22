@@ -95,7 +95,7 @@ func (e *DeviceData) UnmarshalTopic(topic []byte) error {
 func (e *DeviceData) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.Imei) {
+	if !contexts.IMEIFilter().MustFrom(ctx).NeedHandle(e.Imei) {
 		return errors.Errorf("imei %s not in whitelist", e.Imei)
 	}
 
@@ -184,7 +184,7 @@ func (e *DeviceData) handleSensor(ctx context.Context, dev *models.Device, pkg *
 	gyroscope, _ := json.Marshal(pkg.GetGyroscope())
 	accelerometer, _ := json.Marshal(pkg.GetAccelerometer())
 
-	dr := models.DeviceRecord{
+	dr := &models.DeviceRecord{
 		ID:             dev.ID + "-" + fmt.Sprintf("%d", e.bin.GetTimestamp()),
 		Imei:           dev.ID,
 		Timestamp:      int64(e.bin.GetTimestamp()),
@@ -204,7 +204,7 @@ func (e *DeviceData) handleSensor(ctx context.Context, dev *models.Device, pkg *
 		Accelerometer:  string(accelerometer),
 		OperationTimes: models.NewOperationTimes(),
 	}
-	// todo need submit matrix
+	submit(ctx, dr)
 	_, err := UpsertOnConflict(ctx, dr, "id")
 	return errors.Wrapf(err, "failed to upsert senser data: %s", dev.ID)
 }

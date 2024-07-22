@@ -57,7 +57,7 @@ func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to upsert app: %s", app.ID)
 	}
 
-	meta := contexts.AppMetaFromContext(ctx)
+	meta := contexts.AppMeta().MustFrom(ctx)
 	pubType := "pub_FirmwareUpdated_"
 	pubData := &struct {
 		Name       string `json:"name"`
@@ -70,7 +70,7 @@ func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 		Version:    app.Version,
 		Uri:        app.Uri,
 		Avatar:     app.Avatar,
-		ServerMeta: meta,
+		ServerMeta: meta.String(),
 	}
 	return errors.Wrapf(
 		PublicMqttMessage(ctx, pubType, "device/app_update/"+app.ID, pubData),

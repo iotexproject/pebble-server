@@ -44,7 +44,7 @@ func (e *PebbleFirmware) Unmarshal(v any) error {
 func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.Imei) {
+	if !contexts.IMEIFilter().MustFrom(ctx).NeedHandle(e.Imei) {
 		return errors.Errorf("imei %s not in whitelist", e.Imei)
 	}
 
@@ -65,7 +65,7 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to update device firmware: %s %s", dev.ID, dev.Firmware)
 	}
 
-	meta := contexts.AppMetaFromContext(ctx)
+	meta := contexts.AppMeta().MustFrom(ctx)
 	pubType := "pub_PebbleFirmware_"
 	pubData := &struct {
 		Firmware   string `json:"firmware"`
@@ -76,7 +76,7 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 		Firmware:   e.App,
 		Uri:        app.Uri,
 		Version:    app.Version,
-		ServerMeta: meta,
+		ServerMeta: meta.String(),
 	}
 
 	return errors.Wrapf(

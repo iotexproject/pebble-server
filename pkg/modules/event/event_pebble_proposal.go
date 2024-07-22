@@ -47,7 +47,7 @@ func (e *PebbleProposal) Unmarshal(v any) error {
 func (e *PebbleProposal) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.Imei) {
+	if !contexts.IMEIFilter().MustFrom(ctx).NeedHandle(e.Imei) {
 		return errors.Errorf("imei %s not in whitelist", e.Imei)
 	}
 

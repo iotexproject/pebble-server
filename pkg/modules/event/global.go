@@ -11,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
-	"github.com/xoctopus/x/misc/must"
 	"github.com/xoctopus/x/misc/stringsx"
 	"github.com/xoctopus/x/misc/timer"
 
@@ -83,7 +82,7 @@ func Events() []Event {
 
 func Handle(ctx context.Context, subtopic, topic string, data any) (err error) {
 	v := gEventFactory[subtopic]()
-	l := must.BeTrueV(contexts.LoggerFromContext(ctx))
+	l := contexts.Logger().MustFrom(ctx)
 	cost := timer.Span()
 
 	defer func() {
@@ -125,7 +124,7 @@ func Handle(ctx context.Context, subtopic, topic string, data any) (err error) {
 }
 
 func InitRunner(ctx context.Context) func() {
-	logger := must.BeTrueV(contexts.LoggerFromContext(ctx))
+	logger := contexts.Logger().MustFrom(ctx)
 	return func() {
 		if err := Init(ctx); err != nil {
 			logger.Error(err, "event module initialize failed")
@@ -137,7 +136,7 @@ func InitRunner(ctx context.Context) func() {
 
 func Init(ctx context.Context) error {
 	var (
-		l   = must.BeTrueV(contexts.LoggerFromContext(ctx))
+		l   = contexts.Logger().MustFrom(ctx)
 		err error
 	)
 	if err = StartChainEventConsuming(ctx); err != nil {
@@ -156,7 +155,7 @@ func Init(ctx context.Context) error {
 }
 
 func StartMqttEventConsuming(ctx context.Context, v Event) error {
-	mq := must.BeTrueV(contexts.MqttBrokerFromContext(ctx))
+	mq := contexts.MqttBroker().MustFrom(ctx)
 	name := stringsx.UpperCamelCase(v.Topic())
 
 	c, err := mq.NewClient(fmt.Sprintf("sub_%s_%s", name, uuid.NewString()), v.Topic())
@@ -170,7 +169,7 @@ func StartMqttEventConsuming(ctx context.Context, v Event) error {
 }
 
 func StartChainEventConsuming(ctx context.Context) error {
-	bc := must.BeTrueV(contexts.BlockchainFromContext(ctx))
+	bc := contexts.Blockchain().MustFrom(ctx)
 
 	sub, err := bc.Watch(
 		&blockchain.WatchOptions{SubID: "sprout-seq"},
@@ -183,7 +182,7 @@ func StartChainEventConsuming(ctx context.Context) error {
 		return errors.Wrapf(err, "failed to subscribe tx log: %s", "sprout-seq")
 	}
 
-	nc, _ := contexts.LarkAlertFromContext(ctx)
+	nc, _ := contexts.LarkAlert().From(ctx)
 	if nc != nil && !nc.IsZero() {
 		go func(nc *alert.LarkAlert, sub blockchain.Subscription) {
 			err := <-sub.Err()

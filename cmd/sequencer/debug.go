@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xoctopus/datatypex"
-	"github.com/xoctopus/x/misc/must"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 )
@@ -22,7 +21,7 @@ func RunDebugServer(ctx context.Context) {
 	eng.Handle(
 		http.MethodGet, "/monitor",
 		func(c *gin.Context) {
-			bc := must.BeTrueV(contexts.BlockchainFromContext(ctx))
+			bc := contexts.Blockchain().MustFrom(ctx)
 			meta := bc.MonitorMeta()
 			c.JSON(http.StatusOK, meta)
 		},
@@ -30,26 +29,27 @@ func RunDebugServer(ctx context.Context) {
 	eng.Handle(
 		http.MethodGet, "/mqtt",
 		func(c *gin.Context) {
-			b, _ := contexts.MqttBrokerFromContext(ctx)
+			b := contexts.MqttBroker().MustFrom(ctx)
 			c.JSON(http.StatusOK, b)
 		},
 	)
 	eng.Handle(
 		http.MethodGet, "/whitelist",
 		func(c *gin.Context) {
-			wl, _ := contexts.WhiteListFromContext(ctx)
-			c.JSON(http.StatusOK, wl)
+			filter := contexts.IMEIFilter().MustFrom(ctx)
+			c.JSON(http.StatusOK, filter)
 		},
 	)
 	eng.Handle(
 		http.MethodGet, "/project",
 		func(c *gin.Context) {
-			id, _ := contexts.ProjectIDFromContext(ctx)
-			version, _ := contexts.ProjectVersionFromContext(ctx)
 			c.JSON(http.StatusOK, &struct {
 				ID      uint64 `json:"id"`
 				Version string `json:"version"`
-			}{id, version})
+			}{
+				ID:      contexts.ProjectID().MustFrom(ctx),
+				Version: contexts.ProjectVersion().MustFrom(ctx),
+			})
 		},
 	)
 	eng.Handle(
@@ -75,7 +75,7 @@ func RunDebugServer(ctx context.Context) {
 				if parts[0] == "PEBBLE_SEQUENCER__Database_Endpoint" {
 					println(parts[0], parts[1])
 				}
-				if len(parts) >= 2 && strings.HasPrefix(parts[0], "PEBBLE") {
+				if len(parts) >= 2 && strings.HasPrefix(parts[0], "PEBBLE_SEQUENCER__") {
 					keys = append(keys, parts[0])
 				}
 			}

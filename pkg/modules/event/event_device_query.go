@@ -35,7 +35,7 @@ func (e *DeviceQuery) UnmarshalTopic(topic []byte) error {
 func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.Imei) {
+	if !contexts.IMEIFilter().MustFrom(ctx).NeedHandle(e.Imei) {
 		return errors.Errorf("imei %s not in whitelist", e.Imei)
 	}
 
@@ -65,7 +65,7 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 		version = app.Version
 	}
 
-	meta := contexts.AppMetaFromContext(ctx)
+	meta := contexts.AppMeta().MustFrom(ctx)
 	pubType := "pub_DeviceQuery_"
 	pubData := &struct {
 		Status     int32  `json:"status"`
@@ -80,7 +80,7 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 		Firmware:   firmware,
 		URI:        uri,
 		Version:    version,
-		ServerMeta: meta,
+		ServerMeta: meta.String(),
 	}
 	return errors.Wrapf(
 		PublicMqttMessage(ctx, pubType, "backend/"+e.Imei+"/status", pubData),

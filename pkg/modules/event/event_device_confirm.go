@@ -90,7 +90,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		err = WrapHandleError(err, e)
 	}()
 
-	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.Imei) {
+	if !contexts.IMEIFilter().MustFrom(ctx).NeedHandle(e.Imei) {
 		return errors.Errorf("imei %s not in whitelist", e.Imei)
 	}
 
@@ -110,8 +110,8 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 	}
 
 	id := uuid.NewString()
-	projectID := must.BeTrueV(contexts.ProjectIDFromContext(ctx))
-	projectVersion := must.BeTrueV(contexts.ProjectVersionFromContext(ctx))
+	projectID := contexts.ProjectID().MustFrom(ctx)
+	projectVersion := contexts.ProjectVersion().MustFrom(ctx)
 	msg := &models.Message{
 		MessageID:      dev.Address + fmt.Sprintf("-%d-%s", e.pkg.GetTimestamp(), id),
 		ClientID:       dev.Address,
@@ -134,8 +134,8 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		Signature:      "",
 	}
 
-	sk := must.BeTrueV(contexts.EcdsaPrivateKeyFromContext(ctx))
-	db, _ := contexts.DatabaseFromContext(ctx)
+	sk := contexts.PrivateKey().MustFrom(ctx)
+	db := contexts.Database().MustFrom(ctx)
 	err = db.Transaction(func(tx *gorm.DB) error {
 		if err = tx.Create(msg).Error; err != nil {
 			return errors.Wrapf(err, "failed to create message")
@@ -143,7 +143,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		if err = tx.Create(task).Error; err != nil {
 			return errors.Wrapf(err, "failed to create task")
 		}
-		if err = task.Sign(sk, msg); err != nil {
+		if err = task.Sign(sk.PrivateKey, msg); err != nil {
 			return errors.Wrapf(err, "failed to sign message")
 		}
 		err = tx.Model(task).Update("signature", task.Signature).

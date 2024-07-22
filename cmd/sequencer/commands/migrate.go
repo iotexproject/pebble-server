@@ -15,7 +15,7 @@ func Migrate(ctx context.Context) *cobra.Command {
 		Use:   "migrate",
 		Short: "migrate database",
 		Run: func(cmd *cobra.Command, args []string) {
-			db := must.BeTrueV(contexts.DatabaseFromContext(ctx))
+			db := contexts.Database().MustFrom(ctx)
 			must.NoErrorWrap(db.AutoMigrate(
 				&models.Account{},
 				&models.App{},
