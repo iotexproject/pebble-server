@@ -20,11 +20,8 @@ func TestWithDryRun(t *testing.T) {
 	})
 
 	t.Run("MustFromEmpty", func(t *testing.T) {
-		defer func() {
-			e := recover().(error)
-			assert.Contains(t, e.Error(), "not found in context")
-		}()
-		_ = contexts.DryRun().MustFrom(root)
+		dryrun := contexts.DryRun().MustFrom(root)
+		assert.False(t, dryrun)
 	})
 
 	root = contextx.WithContextCompose(
