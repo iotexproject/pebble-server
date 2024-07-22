@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/pebblepb"
 )
@@ -33,7 +34,9 @@ type DeviceData struct {
 	bin *pebblepb.BinPackage
 }
 
-func (e *DeviceData) Source() SourceType { return SOURCE_TYPE__MQTT }
+func (e *DeviceData) Source() enums.EventSourceType {
+	return enums.EVENT_SOURCE_TYPE__MQTT
+}
 
 func (e *DeviceData) Topic() string { return "device/+/data" }
 
@@ -92,11 +95,11 @@ func (e *DeviceData) UnmarshalTopic(topic []byte) error {
 func (e *DeviceData) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.imei) {
-		return errors.Errorf("imei %s not in whitelist", e.imei)
+	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.Imei) {
+		return errors.Errorf("imei %s not in whitelist", e.Imei)
 	}
 
-	dev := &models.Device{ID: e.imei}
+	dev := &models.Device{ID: e.Imei}
 	if err = FetchByPrimary(ctx, dev); err != nil {
 		return errors.Wrapf(err, "failed to fetch dev: %s", dev.ID)
 	}

@@ -13,15 +13,17 @@ import (
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
 	"github.com/xoctopus/x/misc/stringsx"
+	"github.com/xoctopus/x/misc/timer"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/alert"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
 )
 
 type Event interface {
 	// Source returns event source type, eg: mqtt, blockchain
-	Source() SourceType
+	Source() enums.EventSourceType
 	// Topic returns the event subscription topic
 	Topic() string
 	// Unmarshal used to parse message payload to event body
@@ -82,6 +84,7 @@ func Events() []Event {
 func Handle(ctx context.Context, subtopic, topic string, data any) (err error) {
 	v := gEventFactory[subtopic]()
 	l := must.BeTrueV(contexts.LoggerFromContext(ctx))
+	cost := timer.Span()
 
 	defer func() {
 		ll := l.WithValues(
@@ -107,6 +110,7 @@ func Handle(ctx context.Context, subtopic, topic string, data any) (err error) {
 		} else {
 			ll.Info("event handled")
 		}
+		stat(v, err, cost())
 	}()
 
 	if parser, ok := v.(EventHasTopicData); ok {
@@ -140,7 +144,7 @@ func Init(ctx context.Context) error {
 		return err
 	}
 	for _, v := range Events() {
-		if v.Source() == SOURCE_TYPE__MQTT {
+		if v.Source() == enums.EVENT_SOURCE_TYPE__MQTT {
 			err = StartMqttEventConsuming(ctx, v)
 			if err != nil {
 				return errors.Wrapf(err, "failed to start event consuming [topic:%s]", v.Topic())

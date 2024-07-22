@@ -60,9 +60,7 @@ func Main() error {
 	clients := make([]*confmqtt.Client, 0, len(config.Devices)*2)
 
 	for _, imei := range config.Devices {
-		go func(imei string) {
-			clients = append(clients, PubSubQuery(imei)...)
-		}(imei)
+		clients = append(clients, PubSubQuery(imei)...)
 	}
 
 	sig := make(chan os.Signal, 1)
@@ -70,6 +68,7 @@ func Main() error {
 	_ = <-sig
 
 	for _, c := range clients {
+		config.Logger.Info("client closing", "client", c.ID())
 		config.MqttBroker.Close(c)
 	}
 
@@ -93,6 +92,7 @@ func PubSubQuery(imei string) []*confmqtt.Client {
 		client, err := broker.NewClient("sub_backend_status_simulator", topic)
 		must.NoErrorWrap(err, "failed to new sub mqtt client: [topic %s]", topic)
 		clients[1] = client
+		logger.Info("subscribing started", "client", client.ID(), "topic", topic)
 		sequence := 0
 		err = client.Subscribe(func(_ mqtt.Client, message mqtt.Message) {
 			if parts := strings.Split(message.Topic(), "/"); len(parts) != 3 || parts[1] != imei {
@@ -119,28 +119,28 @@ func PubSubQuery(imei string) []*confmqtt.Client {
 			logger.Error(err, "failed to subscribing", "topic", topic)
 			panic(err)
 		}
-		logger.Info("subscribing started", "topic", topic)
 	}
 
-	go func() {
+	{
 		topic := "device/" + imei + "/query"
 		client, err := broker.NewClient(imei+"_"+uuid.NewString(), topic)
 		must.NoErrorWrap(err, "failed to new pub mqtt client: [topic %s]", topic)
-
 		clients[0] = client
-		logger.Info("publishing started", "topic", topic)
-		sequence := 0
-		for {
-			err := client.Publish([]byte{})
-			if err != nil {
-				logger.Error(err, "failed to publish", "seq", sequence, "topic", topic)
-			} else {
-				logger.Info("pub", "seq", sequence, "topic", topic)
-				sequence++
+		logger.Info("publishing started", "client", client.ID(), "topic", topic)
+		go func() {
+			sequence := 0
+			for {
+				err := client.Publish([]byte{})
+				if err != nil {
+					logger.Error(err, "failed to publish", "seq", sequence, "topic", topic)
+				} else {
+					logger.Info("pub", "seq", sequence, "topic", topic)
+					sequence++
+				}
+				time.Sleep(time.Second * 15)
 			}
-			time.Sleep(time.Second * 15)
-		}
-	}()
+		}()
+	}
 
 	return clients
 }

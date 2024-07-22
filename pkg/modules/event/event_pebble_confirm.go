@@ -19,13 +19,15 @@ func init() {
 }
 
 type PebbleConfirm struct {
-	Imei    string
+	IMEI
 	Owner   common.Address
 	Device  common.Address
 	Channel uint32
 }
 
-func (e *PebbleConfirm) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
+func (e *PebbleConfirm) Source() enums.EventSourceType {
+	return enums.EVENT_SOURCE_TYPE__BLOCKCHAIN
+}
 
 func (e *PebbleConfirm) Topic() string {
 	return strings.Join([]string{

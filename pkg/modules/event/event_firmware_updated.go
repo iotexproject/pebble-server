@@ -24,7 +24,9 @@ type FirmwareUpdated struct {
 	Avatar  string
 }
 
-func (e *FirmwareUpdated) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
+func (e *FirmwareUpdated) Source() enums.EventSourceType {
+	return enums.EVENT_SOURCE_TYPE__BLOCKCHAIN
+}
 
 func (e *FirmwareUpdated) Topic() string {
 	return strings.Join([]string{

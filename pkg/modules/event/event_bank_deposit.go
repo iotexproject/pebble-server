@@ -26,7 +26,9 @@ type BankDeposit struct {
 	TxHash
 }
 
-func (e *BankDeposit) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
+func (e *BankDeposit) Source() enums.EventSourceType {
+	return enums.EVENT_SOURCE_TYPE__BLOCKCHAIN
+}
 
 func (e *BankDeposit) Topic() string {
 	return strings.Join([]string{

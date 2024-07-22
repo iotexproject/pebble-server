@@ -19,11 +19,13 @@ func init() {
 }
 
 type PebbleFirmware struct {
-	Imei string
-	App  string
+	IMEI
+	App string
 }
 
-func (e *PebbleFirmware) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
+func (e *PebbleFirmware) Source() enums.EventSourceType {
+	return enums.EVENT_SOURCE_TYPE__BLOCKCHAIN
+}
 
 func (e *PebbleFirmware) Topic() string {
 	return strings.Join([]string{

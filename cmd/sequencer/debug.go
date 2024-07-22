@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/xoctopus/datatypex"
 	"github.com/xoctopus/x/misc/must"
 
@@ -108,6 +109,10 @@ func RunDebugServer(ctx context.Context) {
 				"build_at":     Date,
 			})
 		},
+	)
+	eng.Handle(
+		http.MethodGet, "/metrics",
+		gin.WrapH(promhttp.Handler()),
 	)
 	eng.Run(":80")
 }

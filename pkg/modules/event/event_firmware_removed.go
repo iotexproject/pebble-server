@@ -18,7 +18,9 @@ type FirmwareRemoved struct {
 	Name string
 }
 
-func (e *FirmwareRemoved) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
+func (e *FirmwareRemoved) Source() enums.EventSourceType {
+	return enums.EVENT_SOURCE_TYPE__BLOCKCHAIN
+}
 
 func (e *FirmwareRemoved) Topic() string {
 	return strings.Join([]string{

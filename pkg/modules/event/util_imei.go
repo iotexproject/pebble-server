@@ -6,9 +6,9 @@ type WithIMEI interface {
 }
 
 type IMEI struct {
-	imei string
+	Imei string
 }
 
-func (i *IMEI) SetIMEI(v string) { i.imei = v }
+func (i *IMEI) SetIMEI(v string) { i.Imei = v }
 
-func (i *IMEI) GetIMEI() string { return i.imei }
+func (i *IMEI) GetIMEI() string { return i.Imei }

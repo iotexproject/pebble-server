@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
 
@@ -19,7 +20,9 @@ type DeviceQuery struct {
 	IMEI
 }
 
-func (e *DeviceQuery) Source() SourceType { return SOURCE_TYPE__MQTT }
+func (e *DeviceQuery) Source() enums.EventSourceType {
+	return enums.EVENT_SOURCE_TYPE__MQTT
+}
 
 func (e *DeviceQuery) Topic() string { return "device/+/query" }
 
@@ -32,11 +35,11 @@ func (e *DeviceQuery) UnmarshalTopic(topic []byte) error {
 func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.imei) {
-		return errors.Errorf("imei %s not in whitelist", e.imei)
+	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.Imei) {
+		return errors.Errorf("imei %s not in whitelist", e.Imei)
 	}
 
-	dev := &models.Device{ID: e.imei}
+	dev := &models.Device{ID: e.Imei}
 	err = FetchByPrimary(ctx, dev)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch dev: %s", dev.ID)
@@ -80,7 +83,7 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 		ServerMeta: meta,
 	}
 	return errors.Wrapf(
-		PublicMqttMessage(ctx, pubType, "backend/"+e.imei+"/status", pubData),
+		PublicMqttMessage(ctx, pubType, "backend/"+e.Imei+"/status", pubData),
 		"failed to publish %s", pubType,
 	)
 }

@@ -28,6 +28,25 @@ services:
     ports:
       - "5432:5432"
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+      - "./build/prometheus-dev:/prometheus"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      - "./build/grafana-dev:/var/lib/grafana"
+
   pebble-sequencer:
     image: ghcr.io/machinefi/pebble-sequencer:latest
     container_name: pebble-sequencer

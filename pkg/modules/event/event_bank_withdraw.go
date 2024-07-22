@@ -27,7 +27,9 @@ type BankWithdraw struct {
 	TxHash
 }
 
-func (e *BankWithdraw) Source() SourceType { return SOURCE_TYPE__BLOCKCHAIN }
+func (e *BankWithdraw) Source() enums.EventSourceType {
+	return enums.EVENT_SOURCE_TYPE__BLOCKCHAIN
+}
 
 func (e *BankWithdraw) Topic() string {
 	return strings.Join([]string{

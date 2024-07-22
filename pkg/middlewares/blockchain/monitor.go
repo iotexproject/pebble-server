@@ -262,7 +262,7 @@ func (m *Monitor) Watch(opts *WatchOptions, h EventHandler) (Subscription, error
 			from = *opts.Start
 		}
 		if from == 0 {
-			from = 1
+			from = m.from
 		}
 		end = from
 	}

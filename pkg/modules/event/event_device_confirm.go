@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/pebblepb"
 )
@@ -32,7 +33,9 @@ type DeviceConfirm struct {
 	pkg *pebblepb.ConfirmPackage
 }
 
-func (e *DeviceConfirm) Source() SourceType { return SOURCE_TYPE__MQTT }
+func (e *DeviceConfirm) Source() enums.EventSourceType {
+	return enums.EVENT_SOURCE_TYPE__MQTT
+}
 
 func (e *DeviceConfirm) Topic() string { return "device/+/confirm" }
 
@@ -87,11 +90,11 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		err = WrapHandleError(err, e)
 	}()
 
-	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.imei) {
-		return errors.Errorf("imei %s not in whitelist", e.imei)
+	if !contexts.CheckDeviceWhiteListFromContext(ctx, e.Imei) {
+		return errors.Errorf("imei %s not in whitelist", e.Imei)
 	}
 
-	dev := &models.Device{ID: e.imei}
+	dev := &models.Device{ID: e.Imei}
 	err = FetchByPrimary(ctx, dev)
 	if err != nil {
 		return errors.Wrapf(err, "failed to fetch dev: %s", dev.ID)
@@ -115,7 +118,7 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		ProjectID:      projectID,
 		ProjectVersion: projectVersion,
 		Data: must.NoErrorV(json.Marshal(message{
-			IMEI:        e.imei,
+			IMEI:        e.Imei,
 			Owner:       common.BytesToAddress(e.pkg.GetOwner()).String(),
 			Timestamp:   e.pkg.GetTimestamp(),
 			Signature:   hex.EncodeToString(e.sig),
