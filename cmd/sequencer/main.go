@@ -91,6 +91,7 @@ func init() {
 		contexts.IMEIFilter().Compose(config.WhiteList),
 		contexts.LarkAlert().Compose(config.LarkAlert),
 		contexts.AppMeta().Compose(&meta),
+		contexts.DryRun().Compose(config.DryRun),
 	)(context.Background())
 
 	app.AddCommand(commands.Migrate(ctx))
