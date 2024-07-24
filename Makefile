@@ -1,5 +1,6 @@
 #PACKAGES=$(shell go list ./... | grep -E -v 'example|proto|testdata|mock')
 PACKAGES=$(shell go list ./... | grep -E -v 'pb$|testdata|mock|proto|example')
+MOD=$(shell cat go.mod | grep ^module -m 1 | awk '{ print $$2; }' || '')
 
 debug:
 	@echo ${PACKAGES}
@@ -21,6 +22,17 @@ test: tidy vet
 
 vet:
 	@go vet ${PACKAGES}
+
+fmt:
+	@echo ${MOD}
+	@for item in `find . -type f -name '*.go' -not -path '*.pb.go'` ; \
+	do \
+		if [ -z ${MOD} ]; then \
+			goimports -w $$item ; \
+		else \
+			goimports -w -local "${MOD}" $$item ; \
+		fi \
+	done
 
 report:
 	@echo ">>>static checking"

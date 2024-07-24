@@ -17,4 +17,9 @@ func TestWhiteList_NeedHandle(t *testing.T) {
 	r.False(wl.NeedHandle("119"))
 	r.True((contexts.WhiteList{}).NeedHandle("any"))
 	r.True(wl.NeedHandle("any___0"))
+	r.True(wl.NeedHandle("any___1"))
+	r.True(wl.NeedHandle("any___2"))
+	r.True(wl.NeedHandle("any___3"))
+	r.True(wl.NeedHandle("any___4"))
+	r.False(wl.NeedHandle("any___5"))
 }
