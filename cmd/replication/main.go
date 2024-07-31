@@ -65,7 +65,7 @@ func Main() error {
 
 	subs := map[string]map[string]int64{
 		"prod_device_sub":        {"apply": 0, "sync": 0},
-		"prod_device_record_sub": {"apply": 1, "sync": 0},
+		"prod_device_record_sub": {"apply": 64, "sync": 0},
 	}
 
 	for {

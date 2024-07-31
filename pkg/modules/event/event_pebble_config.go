@@ -61,7 +61,7 @@ func (e *PebbleConfig) Handle(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to fetch app_v2: %s", app.ID)
 	}
 
-	pubType := "pub_PebbleConfig_"
+	pubType := "pub_PebbleConfigRsp"
 	pubData := app.Data
 	return errors.Wrapf(
 		PublicMqttMessage(ctx, pubType, "backend/"+e.Imei+"/config", pubData),

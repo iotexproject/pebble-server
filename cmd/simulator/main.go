@@ -137,7 +137,7 @@ func PubSubQuery(imei string) []*confmqtt.Client {
 					logger.Info("pub", "seq", sequence, "topic", topic)
 					sequence++
 				}
-				time.Sleep(time.Second * 15)
+				time.Sleep(time.Second * 5)
 			}
 		}()
 	}
