@@ -65,7 +65,7 @@ func stat(v Event, e error, cost time.Duration) {
 	} else {
 		mtcSucceededEvent.WithLabelValues(source, topic).Inc()
 	}
-	mtcEventHandlingCost.WithLabelValues(source, topic).Observe(float64(cost.Milliseconds()))
+	mtcEventHandlingCost.WithLabelValues(source, topic).Observe(cost.Seconds())
 }
 
 // submit customized metrics to clickhouse(maybe deprecated)
