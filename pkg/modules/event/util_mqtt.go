@@ -10,6 +10,9 @@ import (
 )
 
 func PublicMqttMessage(ctx context.Context, id, topic string, v any) error {
+	if clientID, ok := contexts.MqttClientID().From(ctx); ok && clientID != "" {
+		id = id + "_" + clientID
+	}
 	if ok, _ := contexts.DryRun().From(ctx); ok {
 		return nil
 	}

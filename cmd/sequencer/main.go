@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/google/uuid"
 	"github.com/xoctopus/confx/confapp"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
@@ -40,6 +41,7 @@ var (
 		ProjectVersion string
 		WhiteList      contexts.WhiteList
 		LarkAlert      *alert.LarkAlert
+		MqttClientID   string
 	}{
 		DryRun:     false,
 		Logger:     &logger.Logger{Level: slog.LevelDebug},
@@ -55,6 +57,7 @@ var (
 			Project: Name,
 			Version: Version,
 		},
+		MqttClientID: uuid.NewString(),
 		// WhiteList: contexts.WhiteList{"103381234567407"},
 	}
 	ctx context.Context
@@ -92,6 +95,7 @@ func init() {
 		contexts.LarkAlert().Compose(config.LarkAlert),
 		contexts.AppMeta().Compose(&meta),
 		contexts.DryRun().Compose(config.DryRun),
+		contexts.MqttClientID().Compose(config.MqttClientID),
 	)(context.Background())
 
 	app.AddCommand(commands.Migrate(ctx))

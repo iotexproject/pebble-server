@@ -9,7 +9,6 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/stringsx"
 	"github.com/xoctopus/x/misc/timer"
@@ -158,7 +157,12 @@ func StartMqttEventConsuming(ctx context.Context, v Event) error {
 	mq := contexts.MqttBroker().MustFrom(ctx)
 	name := stringsx.UpperCamelCase(v.Topic())
 
-	c, err := mq.NewClient(fmt.Sprintf("sub_%s_%s", name, uuid.NewString()), v.Topic())
+	id := "sub_" + name
+	if clientID, ok := contexts.MqttClientID().From(ctx); ok && clientID != "" {
+		id = id + "_" + clientID
+	}
+
+	c, err := mq.NewClient(id, v.Topic())
 	if err != nil {
 		return errors.Wrapf(err, "failed to new mqtt client")
 	}
