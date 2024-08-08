@@ -14,7 +14,7 @@ func TestNewEvent(t *testing.T) {
 
 	for _, v := range event.Events() {
 		if vv, ok := v.(event.EventHasBlockchainMeta); ok {
-			t.Log(v.Source(), vv.ContractID(), vv.EventName())
+			t.Log(v.Source(), vv.ContractID(), vv.EventName(), vv.Topic())
 		}
 	}
 	for _, v := range event.Events() {

@@ -65,18 +65,18 @@ func (e *PebbleFirmware) Handle(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to update device firmware: %s %s", dev.ID, dev.Firmware)
 	}
 
-	meta := contexts.AppMeta().MustFrom(ctx)
+	// meta := contexts.AppMeta().MustFrom(ctx)
 	pubType := "pub_PebbleFirmwareRsp"
 	pubData := &struct {
-		Firmware   string `json:"firmware"`
-		Uri        string `json:"uri"`
-		Version    string `json:"version"`
-		ServerMeta string `json:"server_meta"`
+		Firmware string `json:"firmware"`
+		Uri      string `json:"uri"`
+		Version  string `json:"version"`
+		// ServerMeta string `json:"server_meta"`
 	}{
-		Firmware:   e.App,
-		Uri:        app.Uri,
-		Version:    app.Version,
-		ServerMeta: meta.String(),
+		Firmware: e.App,
+		Uri:      app.Uri,
+		Version:  app.Version,
+		// ServerMeta: meta.String(),
 	}
 
 	return errors.Wrapf(

@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
@@ -57,20 +56,20 @@ func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 		return errors.Wrapf(err, "failed to upsert app: %s", app.ID)
 	}
 
-	meta := contexts.AppMeta().MustFrom(ctx)
+	// meta := contexts.AppMeta().MustFrom(ctx)
 	pubType := "pub_FirmwareUpdatedRsp"
 	pubData := &struct {
-		Name       string `json:"name"`
-		Version    string `json:"version"`
-		Uri        string `json:"uri"`
-		Avatar     string `json:"avatar"`
-		ServerMeta string `json:"meta"`
+		Name    string `json:"name"`
+		Version string `json:"version"`
+		Uri     string `json:"uri"`
+		Avatar  string `json:"avatar"`
+		// ServerMeta string `json:"meta"`
 	}{
-		Name:       app.ID,
-		Version:    app.Version,
-		Uri:        app.Uri,
-		Avatar:     app.Avatar,
-		ServerMeta: meta.String(),
+		Name:    app.ID,
+		Version: app.Version,
+		Uri:     app.Uri,
+		Avatar:  app.Avatar,
+		// ServerMeta: meta.String(),
 	}
 	return errors.Wrapf(
 		PublicMqttMessage(ctx, pubType, "device/app_update/"+app.ID, pubData),

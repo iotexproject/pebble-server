@@ -57,30 +57,29 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 	if parts := strings.Split(dev.RealFirmware, " "); len(parts) == 2 {
 		app := &models.App{ID: parts[0]}
 		err = FetchByPrimary(ctx, app)
-		if err != nil {
-			return errors.Wrapf(err, "failed to fetch app: %s", app.ID)
+		if err == nil {
+			firmware = app.ID
+			uri = app.Uri
+			version = app.Version
 		}
-		firmware = app.ID
-		uri = app.Uri
-		version = app.Version
 	}
 
-	meta := contexts.AppMeta().MustFrom(ctx)
+	// meta := contexts.AppMeta().MustFrom(ctx)
 	pubType := "pub_DeviceQueryRsp"
 	pubData := &struct {
 		Status     int32  `json:"status"`
-		Proposer   string `json:"proposer,omitempty"`
+		Proposer   string `json:"proposer"`
 		Firmware   string `json:"firmware,omitempty"`
 		URI        string `json:"uri,omitempty"`
 		Version    string `json:"version,omitempty"`
-		ServerMeta string `json:"server_meta"`
+		ServerMeta string `json:"server_meta,omitempty"`
 	}{
-		Status:     dev.Status,
-		Proposer:   dev.Proposer,
-		Firmware:   firmware,
-		URI:        uri,
-		Version:    version,
-		ServerMeta: meta.String(),
+		Status:   dev.Status,
+		Proposer: dev.Proposer,
+		Firmware: firmware,
+		URI:      uri,
+		Version:  version,
+		// ServerMeta: meta.String(),
 	}
 	return errors.Wrapf(
 		PublicMqttMessage(ctx, pubType, "backend/"+e.Imei+"/status", pubData),
