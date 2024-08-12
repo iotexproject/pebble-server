@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
@@ -46,9 +45,9 @@ func (e *PebbleConfirm) Unmarshal(v any) error {
 func (e *PebbleConfirm) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
 
-	if !contexts.IMEIFilter().MustFrom(ctx).NeedHandle(e.Imei) {
-		return errors.Errorf("imei %s not in whitelist", e.Imei)
-	}
+	// if !contexts.IMEIFilter().MustFrom(ctx).NeedHandle(e.Imei) {
+	// 	return errors.Errorf("imei %s not in whitelist", e.Imei)
+	// }
 
 	dev := &models.Device{
 		ID:             e.Imei,
