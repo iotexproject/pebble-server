@@ -11,6 +11,7 @@ require (
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-logr/logr v1.4.2
 	github.com/google/uuid v1.6.0
+	github.com/machinefi/ioconnect-go v0.0.9
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.19.1
 	github.com/shopspring/decimal v1.4.0
@@ -54,6 +55,7 @@ require (
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/ethereum/c-kzg-4844 v1.0.0 // indirect
 	github.com/fatih/color v1.17.0 // indirect
+	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect
 	github.com/getsentry/sentry-go v0.27.0 // indirect
 	github.com/gin-contrib/sse v0.1.0 // indirect
