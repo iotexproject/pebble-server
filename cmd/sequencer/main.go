@@ -7,11 +7,15 @@ import (
 	"os/signal"
 
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 	"github.com/xoctopus/confx/confapp"
 	"github.com/xoctopus/confx/confmws/confmqtt"
 	"github.com/xoctopus/x/contextx"
 	"github.com/xoctopus/x/misc/must"
 
+	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
+	"github.com/machinefi/sprout-pebble-sequencer/cmd/sequencer/api"
+	"github.com/machinefi/sprout-pebble-sequencer/cmd/sequencer/clients"
 	"github.com/machinefi/sprout-pebble-sequencer/cmd/sequencer/commands"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/alert"
@@ -31,17 +35,23 @@ var (
 
 	app    *confapp.AppCtx
 	config = &struct {
-		DryRun         bool
-		MqttBroker     *confmqtt.Broker
-		Database       *database.Postgres
-		Blockchain     *blockchain.Blockchain
-		Logger         *logger.Logger
-		PrivateKey     *crypto.EcdsaPrivateKey
-		ProjectID      uint64
-		ProjectVersion string
-		WhiteList      contexts.WhiteList
-		LarkAlert      *alert.LarkAlert
-		MqttClientID   string
+		DryRun                          bool
+		MqttBroker                      *confmqtt.Broker
+		Database                        *database.Postgres
+		Blockchain                      *blockchain.Blockchain
+		Logger                          *logger.Logger
+		PrivateKey                      *crypto.EcdsaPrivateKey
+		ProjectID                       uint64
+		ProjectVersion                  string
+		WhiteList                       contexts.WhiteList
+		LarkAlert                       *alert.LarkAlert
+		MqttClientID                    string
+		JwkSecret                       string
+		IoIDRegistryEndpoint            string
+		IoIDRegistryContractAddress     string
+		ProjectClientContractAddress    string
+		W3bstreamProjectContractAddress string
+		ChainEndpoint                   string
 	}{
 		DryRun:     false,
 		Logger:     &logger.Logger{Level: slog.LevelDebug},
@@ -57,7 +67,13 @@ var (
 			Project: Name,
 			Version: Version,
 		},
-		MqttClientID: uuid.NewString(),
+		MqttClientID:                    uuid.NewString(),
+		JwkSecret:                       "R3QNJihYLjtcaxALSTsKe1cYSX0pS28wZitFVXE4Y2klf2hxVCczYHw2dVg4fXJdSgdCcnM4PgV1aTo9DwYqEw==",
+		IoIDRegistryEndpoint:            "did.iotex.me",
+		IoIDRegistryContractAddress:     "0x06b3Fcda51e01EE96e8E8873F0302381c955Fddd",
+		ProjectClientContractAddress:    "0xF4d6282C5dDD474663eF9e70c927c0d4926d1CEb",
+		W3bstreamProjectContractAddress: "0x6AfCB0EB71B7246A68Bb9c0bFbe5cD7c11c4839f",
+		ChainEndpoint:                   "https://babel-api.testnet.iotex.io",
 		// WhiteList: contexts.WhiteList{"103381234567407"},
 	}
 	ctx context.Context
@@ -102,6 +118,26 @@ func init() {
 	app.AddCommand(commands.GenerateSproutConfig(ctx))
 }
 
+func runHTTP(ctx context.Context) {
+	secrets := ioconnect.JWKSecrets{}
+	if err := secrets.UnmarshalText([]byte(config.JwkSecret)); err != nil {
+		panic(errors.Wrap(err, "invalid jwk secrets from flag"))
+	}
+	jwk, err := ioconnect.NewJWKBySecret(secrets)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to new jwk from secrets"))
+	}
+	clientMgr, err := clients.NewManager(config.ProjectClientContractAddress, config.IoIDRegistryContractAddress, config.W3bstreamProjectContractAddress, config.IoIDRegistryEndpoint, config.ChainEndpoint)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to new clients manager"))
+	}
+	go func() {
+		if err := api.NewHttpServer(ctx, jwk, clientMgr).Run(":9000"); err != nil {
+			panic(err)
+		}
+	}()
+}
+
 // Main app main entry
 func Main() error {
 	_ = config.LarkAlert.Push("service started", "")
@@ -115,10 +151,11 @@ func Main() error {
 	defer config.Blockchain.Close()
 
 	go RunDebugServer(ctx)
+	runHTTP(ctx)
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
-	_ = <-sig
+	<-sig
 
 	config.LarkAlert.Push("service stopped", "")
 	return nil
