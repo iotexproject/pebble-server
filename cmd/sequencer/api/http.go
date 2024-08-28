@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -84,8 +85,23 @@ func (s *httpServer) verifyToken(c *gin.Context) {
 }
 
 func (s *httpServer) confirmDevice(c *gin.Context) {
-	//imei := c.Param("imei")
-
+	imei := c.Param("imei")
+	data, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to read request body")))
+		return
+	}
+	e := &event.DeviceConfirm{}
+	if err := e.Unmarshal(data); err != nil {
+		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to unmarshal request body")))
+		return
+	}
+	e.Imei = imei
+	if err := e.Handle(s.ctx); err != nil {
+		c.JSON(http.StatusInternalServerError, apitypes.NewErrRsp(errors.Wrap(err, "failed to confirm device")))
+		return
+	}
+	c.Status(http.StatusOK)
 }
 
 func (s *httpServer) queryDeviceState(c *gin.Context) {
