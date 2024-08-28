@@ -40,7 +40,8 @@ func NewHttpServer(ctx context.Context, jwk *ioconnect.JWK, clientMgr *clients.M
 	)
 
 	s.engine.POST("/issue_vc", s.issueJWTCredential)
-	s.engine.GET("/device/:imei/query", s.verifyToken, s.queryStateLogByID)
+	s.engine.POST("/device/:imei/confirm", s.verifyToken, s.confirmDevice)
+	s.engine.GET("/device/:imei/query", s.verifyToken, s.queryDeviceState)
 	s.engine.GET("/didDoc", s.didDoc)
 
 	return s
@@ -82,7 +83,12 @@ func (s *httpServer) verifyToken(c *gin.Context) {
 	c.Request = c.Request.WithContext(ctx)
 }
 
-func (s *httpServer) queryStateLogByID(c *gin.Context) {
+func (s *httpServer) confirmDevice(c *gin.Context) {
+	//imei := c.Param("imei")
+
+}
+
+func (s *httpServer) queryDeviceState(c *gin.Context) {
 	imei := c.Param("imei")
 
 	dev := &models.Device{ID: imei}
