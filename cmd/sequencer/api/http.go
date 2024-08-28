@@ -42,6 +42,7 @@ func NewHttpServer(ctx context.Context, jwk *ioconnect.JWK, clientMgr *clients.M
 
 	s.engine.POST("/issue_vc", s.issueJWTCredential)
 	s.engine.POST("/device/:imei/confirm", s.verifyToken, s.confirmDevice)
+	s.engine.POST("/device/:imei/data", s.verifyToken, s.receiveDeviceData)
 	s.engine.GET("/device/:imei/query", s.verifyToken, s.queryDeviceState)
 	s.engine.GET("/didDoc", s.didDoc)
 
@@ -82,6 +83,26 @@ func (s *httpServer) verifyToken(c *gin.Context) {
 
 	ctx := clients.WithClientID(c.Request.Context(), client)
 	c.Request = c.Request.WithContext(ctx)
+}
+
+func (s *httpServer) receiveDeviceData(c *gin.Context) {
+	imei := c.Param("imei")
+	data, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to read request body")))
+		return
+	}
+	e := &event.DeviceData{}
+	if err := e.Unmarshal(data); err != nil {
+		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to unmarshal request body")))
+		return
+	}
+	e.Imei = imei
+	if err := e.Handle(s.ctx); err != nil {
+		c.JSON(http.StatusInternalServerError, apitypes.NewErrRsp(errors.Wrap(err, "failed to receive device data")))
+		return
+	}
+	c.Status(http.StatusOK)
 }
 
 func (s *httpServer) confirmDevice(c *gin.Context) {
