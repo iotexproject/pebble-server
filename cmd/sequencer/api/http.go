@@ -65,6 +65,7 @@ func (s *httpServer) verifyToken(c *gin.Context) {
 	}
 
 	if tok == "" {
+		slog.Error("empty authorization token")
 		return
 	}
 
@@ -72,17 +73,20 @@ func (s *httpServer) verifyToken(c *gin.Context) {
 
 	clientID, err := s.jwk.VerifyToken(tok)
 	if err != nil {
+		slog.Error("failed to verify token", "error", err)
 		c.JSON(http.StatusUnauthorized, apitypes.NewErrRsp(errors.Wrap(err, "invalid credential token")))
 		return
 	}
 	client := s.clients.ClientByIoID(clientID)
 	if client == nil {
+		slog.Error("failed to get client by ioid", "client_id", clientID)
 		c.JSON(http.StatusUnauthorized, apitypes.NewErrRsp(errors.New("invalid credential token")))
 		return
 	}
 
 	ctx := clients.WithClientID(c.Request.Context(), client)
 	c.Request = c.Request.WithContext(ctx)
+	slog.Info("verify token succeed", "client_id", clientID)
 }
 
 func (s *httpServer) receiveDeviceData(c *gin.Context) {
@@ -130,10 +134,12 @@ func (s *httpServer) queryDeviceState(c *gin.Context) {
 
 	dev := &models.Device{ID: imei}
 	if err := event.FetchByPrimary(s.ctx, dev); err != nil {
+		slog.Error("failed to query device", "error", err)
 		c.JSON(http.StatusInternalServerError, apitypes.NewErrRsp(err))
 		return
 	}
 	if dev.Status == models.CREATED {
+		slog.Error("device is not propsaled", "device_id", dev.ID)
 		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Errorf("device %s is not propsaled", dev.ID)))
 		return
 	}
