@@ -70,7 +70,7 @@ var (
 		MqttClientID:                    uuid.NewString(),
 		JwkSecret:                       "R3QNJihYLjtcaxALSTsKe1cYSX0pS28wZitFVXE4Y2klf2hxVCczYHw2dVg4fXJdSgdCcnM4PgV1aTo9DwYqEw==",
 		IoIDRegistryEndpoint:            "did.iotex.me",
-		IoIDRegistryContractAddress:     "0x06b3Fcda51e01EE96e8E8873F0302381c955Fddd",
+		IoIDRegistryContractAddress:     "0x0A7e595C7889dF3652A19aF52C18377bF17e027D",
 		ProjectClientContractAddress:    "0xF4d6282C5dDD474663eF9e70c927c0d4926d1CEb",
 		W3bstreamProjectContractAddress: "0x6AfCB0EB71B7246A68Bb9c0bFbe5cD7c11c4839f",
 		ChainEndpoint:                   "https://babel-api.testnet.iotex.io",
