@@ -120,11 +120,13 @@ func (s *httpServer) receiveDeviceData(c *gin.Context) {
 
 	e := &event.DeviceData{}
 	if err := e.Unmarshal(payload); err != nil {
+		slog.Error("failed to unmarshal device data", "error", err)
 		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to unmarshal request body")))
 		return
 	}
 	e.Imei = client.DID()
 	if err := e.Handle(s.ctx); err != nil {
+		slog.Error("failed to handle device data", "error", err)
 		c.JSON(http.StatusInternalServerError, apitypes.NewErrRsp(errors.Wrap(err, "failed to receive device data")))
 		return
 	}
