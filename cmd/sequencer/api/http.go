@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gin-gonic/gin"
 	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
 	"github.com/pkg/errors"
@@ -41,9 +42,8 @@ func NewHttpServer(ctx context.Context, jwk *ioconnect.JWK, clientMgr *clients.M
 	)
 
 	s.engine.POST("/issue_vc", s.issueJWTCredential)
-	s.engine.POST("/device/:imei/confirm", s.verifyToken, s.confirmDevice)
-	s.engine.POST("/device/:imei/data", s.verifyToken, s.receiveDeviceData)
-	s.engine.GET("/device/:imei/query", s.verifyToken, s.queryDeviceState)
+	s.engine.POST("/device/data", s.verifyToken, s.receiveDeviceData)
+	s.engine.GET("/device/query", s.verifyToken, s.queryDeviceState)
 	s.engine.GET("/didDoc", s.didDoc)
 
 	return s
@@ -90,7 +90,7 @@ func (s *httpServer) verifyToken(c *gin.Context) {
 }
 
 func (s *httpServer) receiveDeviceData(c *gin.Context) {
-	imei := c.Param("imei")
+	client := clients.ClientIDFrom(c.Request.Context())
 	data, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to read request body")))
@@ -101,7 +101,7 @@ func (s *httpServer) receiveDeviceData(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to unmarshal request body")))
 		return
 	}
-	e.Imei = imei
+	e.Imei = client.DID()
 	if err := e.Handle(s.ctx); err != nil {
 		c.JSON(http.StatusInternalServerError, apitypes.NewErrRsp(errors.Wrap(err, "failed to receive device data")))
 		return
@@ -109,30 +109,10 @@ func (s *httpServer) receiveDeviceData(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (s *httpServer) confirmDevice(c *gin.Context) {
-	imei := c.Param("imei")
-	data, err := io.ReadAll(c.Request.Body)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to read request body")))
-		return
-	}
-	e := &event.DeviceConfirm{}
-	if err := e.Unmarshal(data); err != nil {
-		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to unmarshal request body")))
-		return
-	}
-	e.Imei = imei
-	if err := e.Handle(s.ctx); err != nil {
-		c.JSON(http.StatusInternalServerError, apitypes.NewErrRsp(errors.Wrap(err, "failed to confirm device")))
-		return
-	}
-	c.Status(http.StatusOK)
-}
-
 func (s *httpServer) queryDeviceState(c *gin.Context) {
-	imei := c.Param("imei")
+	client := clients.ClientIDFrom(c.Request.Context())
 
-	dev := &models.Device{ID: imei}
+	dev := &models.Device{ID: client.DID()}
 	if err := event.FetchByPrimary(s.ctx, dev); err != nil {
 		slog.Error("failed to query device", "error", err)
 		c.JSON(http.StatusInternalServerError, apitypes.NewErrRsp(err))
@@ -201,18 +181,21 @@ func (s *httpServer) didDoc(c *gin.Context) {
 func (s *httpServer) issueJWTCredential(c *gin.Context) {
 	req := new(apitypes.IssueTokenReq)
 	if err := c.ShouldBindJSON(req); err != nil {
+		slog.Error("failed to bind request", "error", err)
 		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(err))
 		return
 	}
 
 	client := s.clients.ClientByIoID(req.ClientID)
 	if client == nil {
+		slog.Error("failed to get client", "client_id", req.ClientID)
 		c.String(http.StatusForbidden, errors.Errorf("client is not register to ioRegistry").Error())
 		return
 	}
 
 	token, err := s.jwk.SignToken(req.ClientID)
 	if err != nil {
+		slog.Error("failed to sign token", "client_id", req.ClientID, "error", err)
 		c.String(http.StatusInternalServerError, errors.Wrap(err, "failed to sign token").Error())
 		return
 	}
@@ -220,7 +203,22 @@ func (s *httpServer) issueJWTCredential(c *gin.Context) {
 
 	cipher, err := s.jwk.Encrypt([]byte(token), client.KeyAgreementKID())
 	if err != nil {
+		slog.Error("failed to encrypt", "client_id", req.ClientID, "error", err)
 		c.String(http.StatusInternalServerError, errors.Wrap(err, "failed to encrypt").Error())
+		return
+	}
+
+	dev := &models.Device{
+		ID:             client.DID(),
+		Owner:          client.Owner().String(),
+		Address:        common.HexToAddress(strings.TrimPrefix(client.DID(), "did:io:")).String(),
+		Status:         models.CONFIRM,
+		Proposer:       client.Owner().String(),
+		OperationTimes: models.NewOperationTimes(),
+	}
+	if _, err := event.UpsertOnConflict(s.ctx, dev, "id", "owner", "proposer", "status", "updated_at"); err != nil {
+		slog.Error("failed to upsert device", "client_id", req.ClientID, "error", err)
+		c.String(http.StatusInternalServerError, errors.Wrap(err, "failed to upsert device").Error())
 		return
 	}
 
