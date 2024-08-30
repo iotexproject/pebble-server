@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/base64"
 	"io"
 	"log/slog"
 	"net/http"
@@ -90,19 +91,42 @@ func (s *httpServer) verifyToken(c *gin.Context) {
 }
 
 func (s *httpServer) receiveDeviceData(c *gin.Context) {
-	client := clients.ClientIDFrom(c.Request.Context())
-	data, err := io.ReadAll(c.Request.Body)
+	payload, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to read request body")))
+		slog.Error("failed to read request body", "error", err)
+		c.JSON(http.StatusInternalServerError, apitypes.NewErrRsp(errors.Wrap(err, "failed to read request body")))
 		return
 	}
+	defer c.Request.Body.Close()
+
+	// decrypt did comm message
+	client := clients.ClientIDFrom(c.Request.Context())
+	if client != nil {
+		slog.Info("decrypted payload", "payload", string(payload))
+		payload, err = s.jwk.Decrypt(payload, client.DID())
+		if err != nil {
+			slog.Error("failed to decrypt didcomm cipher data", "error", err)
+			c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to decrypt didcomm cipher data")))
+			return
+		}
+		slog.Info("encrypted payload", "payload", string(payload))
+	}
+	payload, err = base64.RawURLEncoding.DecodeString(string(payload))
+	if err != nil {
+		slog.Error("failed to decode base64 data", "error", err)
+		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to decode base64 data")))
+		return
+	}
+
 	e := &event.DeviceData{}
-	if err := e.Unmarshal(data); err != nil {
+	if err := e.Unmarshal(payload); err != nil {
+		slog.Error("failed to unmarshal device data", "error", err)
 		c.JSON(http.StatusBadRequest, apitypes.NewErrRsp(errors.Wrap(err, "failed to unmarshal request body")))
 		return
 	}
 	e.Imei = client.DID()
 	if err := e.Handle(s.ctx); err != nil {
+		slog.Error("failed to handle device data", "error", err)
 		c.JSON(http.StatusInternalServerError, apitypes.NewErrRsp(errors.Wrap(err, "failed to receive device data")))
 		return
 	}
