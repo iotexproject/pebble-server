@@ -23,6 +23,7 @@ import (
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/crypto"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/logger"
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
 )
 
@@ -141,6 +142,22 @@ func runHTTP(ctx context.Context) {
 // Main app main entry
 func Main() error {
 	_ = config.LarkAlert.Push("service started", "")
+
+	db := contexts.Database().MustFrom(ctx)
+	if err := db.AutoMigrate(
+		&models.Account{},
+		&models.App{},
+		&models.AppV2{},
+		&models.Bank{},
+		&models.BankRecord{},
+		&models.Device{},
+		&models.DeviceRecord{},
+		&models.Task{},
+		&models.Message{},
+	); err != nil {
+		slog.Error("failed to migrate database", "error", err)
+		return err
+	}
 
 	blockchain.SetLogger(config.Logger)
 	if err := config.Blockchain.RunMonitor(); err != nil {
