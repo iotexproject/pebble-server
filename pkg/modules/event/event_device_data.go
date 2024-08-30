@@ -109,9 +109,10 @@ func (e *DeviceData) Handle(ctx context.Context) (err error) {
 	// }
 
 	e.addr = common.HexToAddress(dev.Address)
-	if !e.Validate() {
-		return WrapValidateError(e)
-	}
+	// for ioid model, don't need validate signature
+	// if !e.Validate() {
+	// 	return WrapValidateError(e)
+	// }
 
 	switch pkg := e.pkg.(type) {
 	case *pebblepb.SensorConfig:
