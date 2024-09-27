@@ -48,10 +48,10 @@ var contracts = []*blockchain.Contract{
 	{
 		ID:      enums.CONTRACT__PEBBLE_FIRMWARE,
 		Network: blockchain.NETWORK__IOTX_MAINNET,
-		Address: common.HexToAddress("0xC5F406c42C96e68756311Dad49dE99B0f4A1A722"),
+		Address: common.HexToAddress("0xA596800891e6a95Bf737404411ef529c1F377b4e"),
 		Events: []*blockchain.Event{
-			{Name: "FirmwareRemoved", ABI: abiFirmwareRemoved},
-			{Name: "FirmwareUpdated", ABI: abiFirmwareUpdated},
+			// {Name: "FirmwareRemoved", ABI: abiFirmwareRemoved},
+			{Name: "AddMetadata", ABI: abiFirmwareUpdated},
 		},
 	},
 	{
@@ -87,10 +87,10 @@ var contracts = []*blockchain.Contract{
 	{
 		ID:      enums.CONTRACT__PEBBLE_FIRMWARE,
 		Network: blockchain.NETWORK__IOTX_TESTNET,
-		Address: common.HexToAddress("0x93ea43b4548058f4c02925F0725422E6DC81c92d"),
+		Address: common.HexToAddress("0xf07336E1c77319B4e740b666eb0C2B19D11fc14F"),
 		Events: []*blockchain.Event{
-			{Name: "FirmwareRemoved", ABI: abiFirmwareRemoved},
-			{Name: "FirmwareUpdated", ABI: abiFirmwareUpdated},
+			// {Name: "FirmwareRemoved", ABI: abiFirmwareRemoved},
+			{Name: "AddMetadata", ABI: abiFirmwareUpdated},
 		},
 	},
 	{

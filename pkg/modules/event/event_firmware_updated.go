@@ -1,9 +1,14 @@
 package event
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"math/big"
+	"strconv"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
@@ -35,10 +40,47 @@ func (e *FirmwareUpdated) Topic() string {
 
 func (e *FirmwareUpdated) ContractID() string { return enums.CONTRACT__PEBBLE_FIRMWARE }
 
-func (e *FirmwareUpdated) EventName() string { return "FirmwareUpdated" }
+func (e *FirmwareUpdated) EventName() string { return "AddMetadata" }
+
+type (
+	AddMetadataEvent struct {
+		ProjectId *big.Int
+		Name      string
+		Key       [32]byte
+		Value     []byte
+	}
+
+	FirmwareData struct {
+		Name    string `json:"name"`
+		Version int    `json:"version"`
+		URL     string `json:"url"`
+	}
+)
 
 func (e *FirmwareUpdated) Unmarshal(v any) error {
-	return v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), e)
+	ame := &AddMetadataEvent{}
+
+	if err := v.(TxEventUnmarshaler).UnmarshalTx(e.EventName(), ame); err != nil {
+		return err
+	}
+
+	pebbleKey := crypto.Keccak256Hash([]byte("pebble_firmware"))
+	if !bytes.Equal(ame.Key[:], pebbleKey[:]) {
+		return errors.Errorf("key mismatch: %x != %x", ame.Key, pebbleKey)
+	}
+
+	var firmware FirmwareData
+
+	err := json.Unmarshal(ame.Value, &firmware)
+	if err != nil {
+		return errors.Wrapf(err, "failed to unmarshal firmware data: %s", string(ame.Value))
+	}
+
+	e.Name = firmware.Name
+	e.Version = strconv.Itoa(firmware.Version)
+	e.Uri = firmware.URL
+
+	return nil
 }
 
 func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
