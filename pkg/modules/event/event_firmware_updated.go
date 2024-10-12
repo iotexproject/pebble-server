@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
@@ -22,10 +23,11 @@ func init() {
 }
 
 type FirmwareUpdated struct {
-	Name    string
-	Version string
-	Uri     string
-	Avatar  string
+	ProjectId uint64
+	Name      string
+	Version   string
+	Uri       string
+	Avatar    string
 }
 
 func (e *FirmwareUpdated) Source() enums.EventSourceType {
@@ -76,6 +78,7 @@ func (e *FirmwareUpdated) Unmarshal(v any) error {
 		return errors.Wrapf(err, "failed to unmarshal firmware data: %s", string(ame.Value))
 	}
 
+	e.ProjectId = ame.ProjectId.Uint64()
 	e.Name = firmware.Name
 	e.Version = strconv.Itoa(firmware.Version)
 	e.Uri = firmware.URL
@@ -85,6 +88,11 @@ func (e *FirmwareUpdated) Unmarshal(v any) error {
 
 func (e *FirmwareUpdated) Handle(ctx context.Context) (err error) {
 	defer func() { err = WrapHandleError(err, e) }()
+
+	projectID := contexts.IoIDProjectID().MustFrom(ctx)
+	if e.ProjectId != projectID {
+		return errors.Wrapf(err, "ioID projectId dismatch: %d != %d", projectID, e.ProjectId)
+	}
 
 	app := &models.App{
 		ID:             e.Name,

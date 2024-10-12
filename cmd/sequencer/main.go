@@ -53,6 +53,7 @@ var (
 		ProjectClientContractAddress    string
 		W3bstreamProjectContractAddress string
 		ChainEndpoint                   string
+		IoIDProjectID                   uint64
 	}{
 		DryRun:     false,
 		Logger:     &logger.Logger{Level: slog.LevelDebug},
@@ -96,8 +97,8 @@ func init() {
 
 	app.Conf(config)
 	must.BeTrueWrap(
-		config.ProjectVersion != "" && config.ProjectID != 0,
-		"project id and version is required",
+		config.ProjectVersion != "" && config.ProjectID != 0 && config.IoIDProjectID != 0,
+		"project id, version and ioID project id is required",
 	)
 
 	ctx = contextx.WithContextCompose(
@@ -113,6 +114,7 @@ func init() {
 		contexts.AppMeta().Compose(&meta),
 		contexts.DryRun().Compose(config.DryRun),
 		contexts.MqttClientID().Compose(config.MqttClientID),
+		contexts.IoIDProjectID().Compose(config.IoIDProjectID),
 	)(context.Background())
 
 	app.AddCommand(commands.Migrate(ctx))

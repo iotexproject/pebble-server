@@ -26,6 +26,7 @@ var (
 	_mqttBroker     = contextx.New[*confmqtt.Broker]()
 	_logger         = contextx.New[*logger.Logger]()
 	_mqttClientID   = contextx.New[string]()
+	_ioIDProjectID  = contextx.New[uint64]()
 )
 
 func DryRun() contextx.Context[bool]                        { return _dryRun }
@@ -40,3 +41,4 @@ func Blockchain() contextx.Context[*blockchain.Blockchain]  { return _blockchain
 func MqttBroker() contextx.Context[*confmqtt.Broker]        { return _mqttBroker }
 func Logger() contextx.Context[*logger.Logger]              { return _logger }
 func MqttClientID() contextx.Context[string]                { return _mqttClientID }
+func IoIDProjectID() contextx.Context[uint64]               { return _ioIDProjectID }
