@@ -130,7 +130,7 @@ func (bc *Blockchain) RunMonitor() error {
 		bc.monitor = NewMonitor(bc.Network, bc.Contracts...)
 
 		bc.monitor.WithInterval(10 * time.Second).
-			WithStartBlock(14900000).
+			WithStartBlock(28528000).
 			WithEthClient(bc.clients[bc.Network]).
 			WithPersistence(bc.persist)
 
