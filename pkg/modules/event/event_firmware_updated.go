@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"math/big"
-	"strconv"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -54,7 +53,7 @@ type (
 
 	FirmwareData struct {
 		Name    string `json:"name"`
-		Version int    `json:"version"`
+		Version string `json:"version"`
 		URL     string `json:"url"`
 	}
 )
@@ -80,7 +79,7 @@ func (e *FirmwareUpdated) Unmarshal(v any) error {
 
 	e.ProjectId = ame.ProjectId.Uint64()
 	e.Name = firmware.Name
-	e.Version = strconv.Itoa(firmware.Version)
+	e.Version = firmware.Version
 	e.Uri = firmware.URL
 
 	return nil
