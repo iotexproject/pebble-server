@@ -26,12 +26,15 @@ var (
 	abiProjectClient []byte
 	//go:embed contracts/W3bstreamProject.json
 	abiW3bstreamProject []byte
+	//go:embed contracts/ioID.json
+	abiIoID []byte
 )
 
 func NewManager(
 	projectClientContractAddress string,
 	ioIDRegisterContractAddress string,
 	w3bstreamProjectContractAddress string,
+	ioIDContractAddress string,
 	ioIDRegistryServiceEndpoint string,
 	chainEndpoint string,
 ) (*Manager, error) {
@@ -68,6 +71,15 @@ func NewManager(
 		manager.w3bsteramProjectInstance = instance
 	}
 
+	{
+		name := "ioID"
+		instance, err := contract.NewInstanceByABI(name, ioIDContractAddress, chainEndpoint, abiIoID)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to new contract instance: %s", name)
+		}
+		manager.ioIDInstance = instance
+	}
+
 	return manager, nil
 }
 
@@ -77,6 +89,7 @@ type Manager struct {
 	ioIDRegistryInstance     contract.Instance
 	projectClientInstance    contract.Instance
 	w3bsteramProjectInstance contract.Instance
+	ioIDInstance             contract.Instance
 	ioIDRegistryEndpoint     string
 }
 
@@ -111,10 +124,18 @@ func (mgr *Manager) fetchFromContract(id string) (*Client, error) {
 	var (
 		address = common.HexToAddress(strings.TrimPrefix(id, "did:io:"))
 		uri     string
+		ioID    big.Int
+		owner   common.Address
 	)
 
 	if err := mgr.ioIDRegistryInstance.ReadResult("documentURI", &uri, address); err != nil {
 		return nil, errors.Wrapf(err, "failed to read client document uri: %s %s", id, address.String())
+	}
+	if err := mgr.ioIDRegistryInstance.ReadResult("deviceTokenId", &ioID, address); err != nil {
+		return nil, errors.Wrapf(err, "failed to read client device token id: %s %s", id, address.String())
+	}
+	if err := mgr.ioIDRegistryInstance.ReadResult("ownerOf", &owner, ioID); err != nil {
+		return nil, errors.Wrapf(err, "failed to read client ioID owner: %s %s", id, ioID.String())
 	}
 
 	url := fmt.Sprintf("https://%s/cid/%s", mgr.ioIDRegistryEndpoint, uri)
@@ -132,7 +153,10 @@ func (mgr *Manager) fetchFromContract(id string) (*Client, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse did doc")
 	}
-	return &Client{jwk: jwk}, nil
+	return &Client{
+		owner: owner,
+		jwk:   jwk,
+	}, nil
 }
 
 func (mgr *Manager) HasProjectPermission(clientID string, projectID uint64) (bool, error) {

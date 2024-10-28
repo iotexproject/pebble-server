@@ -52,6 +52,7 @@ var (
 		IoIDRegistryContractAddress     string
 		ProjectClientContractAddress    string
 		W3bstreamProjectContractAddress string
+		IoIDContractAddress             string
 		ChainEndpoint                   string
 		IoIDProjectID                   uint64
 	}{
@@ -75,6 +76,7 @@ var (
 		IoIDRegistryContractAddress:     "0x0A7e595C7889dF3652A19aF52C18377bF17e027D",
 		ProjectClientContractAddress:    "0xF4d6282C5dDD474663eF9e70c927c0d4926d1CEb",
 		W3bstreamProjectContractAddress: "0x6AfCB0EB71B7246A68Bb9c0bFbe5cD7c11c4839f",
+		IoIDContractAddress:             "0x45Ce3E6f526e597628c73B731a3e9Af7Fc32f5b7",
 		ChainEndpoint:                   "https://babel-api.testnet.iotex.io",
 		// WhiteList: contexts.WhiteList{"103381234567407"},
 	}
@@ -130,7 +132,7 @@ func runHTTP(ctx context.Context) {
 	if err != nil {
 		panic(errors.Wrap(err, "failed to new jwk from secrets"))
 	}
-	clientMgr, err := clients.NewManager(config.ProjectClientContractAddress, config.IoIDRegistryContractAddress, config.W3bstreamProjectContractAddress, config.IoIDRegistryEndpoint, config.ChainEndpoint)
+	clientMgr, err := clients.NewManager(config.ProjectClientContractAddress, config.IoIDRegistryContractAddress, config.W3bstreamProjectContractAddress, config.IoIDContractAddress, config.IoIDRegistryEndpoint, config.ChainEndpoint)
 	if err != nil {
 		panic(errors.Wrap(err, "failed to new clients manager"))
 	}
