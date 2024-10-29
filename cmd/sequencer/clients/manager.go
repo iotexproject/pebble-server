@@ -134,7 +134,7 @@ func (mgr *Manager) fetchFromContract(id string) (*Client, error) {
 	if err := mgr.ioIDRegistryInstance.ReadResult("deviceTokenId", &ioID, address); err != nil {
 		return nil, errors.Wrapf(err, "failed to read client device token id: %s %s", id, address.String())
 	}
-	if err := mgr.ioIDRegistryInstance.ReadResult("ownerOf", &owner, ioID); err != nil {
+	if err := mgr.ioIDInstance.ReadResult("ownerOf", &owner, ioID); err != nil {
 		return nil, errors.Wrapf(err, "failed to read client ioID owner: %s %s", id, ioID.String())
 	}
 
