@@ -124,7 +124,7 @@ func (mgr *Manager) fetchFromContract(id string) (*Client, error) {
 	var (
 		address = common.HexToAddress(strings.TrimPrefix(id, "did:io:"))
 		uri     string
-		ioID    big.Int
+		ioID    *big.Int
 		owner   common.Address
 	)
 
