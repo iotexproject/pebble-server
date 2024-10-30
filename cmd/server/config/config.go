@@ -35,7 +35,6 @@ var (
 		ChainEndpoint:                "https://babel-api.testnet.iotex.io",
 		BeginningBlockNumber:         28685000,
 		LocalDBPath:                  "./local_db",
-		MqttBrokerEndpoint:           "ssl://mosquitto.w3bstream-testnet:8883/mqtt",
 		MqttBrokerQoS:                "ONCE",
 		MqttBrokerCertCAPath:         "/etc/pebble/root.pem",
 		MqttBrokerCertCrtPath:        "/etc/pebble/tls-cert.pem",
