@@ -1,4 +1,4 @@
-module github.com/machinefi/sprout-pebble-sequencer
+module github.com/iotexproject/pebble-server
 
 go 1.22.0
 
