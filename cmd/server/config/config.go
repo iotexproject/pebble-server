@@ -8,34 +8,44 @@ import (
 )
 
 type Config struct {
-	LogLevel                slog.Level `env:"LOG_LEVEL,optional"`
-	BootNodeMultiAddr       string     `env:"BOOTNODE_MULTIADDR"`
-	IoTeXChainID            int        `env:"IOTEX_CHAINID"`
-	DatasourceDSN           string     `env:"DATASOURCE_DSN"`
-	ChainEndpoint           string     `env:"CHAIN_ENDPOINT,optional"`
-	OperatorPrvKey          string     `env:"OPERATOR_PRIVATE_KEY,optional"`
-	LocalDBDir              string     `env:"LOCAL_DB_DIRECTORY,optional"`
-	BeginningBlockNumber    uint64     `env:"BEGINNING_BLOCK_NUMBER,optional"`
-	ProverContractAddr      string     `env:"PROVER_CONTRACT_ADDRESS,optional"`
-	MinterContractAddr      string     `env:"MINTER_CONTRACT_ADDRESS,optional"`
-	TaskManagerContractAddr string     `env:"TASK_MANAGER_CONTRACT_ADDRESS,optional"`
-	env                     string     `env:"-"`
+	LogLevel                     slog.Level `env:"LOG_LEVEL,optional"`
+	DatabaseDSN                  string     `env:"DATABASE_DSN"`
+	ChainEndpoint                string     `env:"CHAIN_ENDPOINT,optional"`
+	BeginningBlockNumber         uint64     `env:"BEGINNING_BLOCK_NUMBER,optional"`
+	OperatorPrvKey               string     `env:"OPERATOR_PRIVATE_KEY,optional"`
+	LocalDBPath                  string     `env:"LOCAL_DB_PATH,optional"`
+	MqttBrokerEndpoint           string     `env:"MQTT_BROKER_ENDPOINT,optional"`
+	MqttBrokerQoS                string     `env:"MQTT_BROKER_QOS,optional"`
+	MqttBrokerCertCAPath         string     `env:"MQTT_BROKER_CERT_CA_PATH,optional"`
+	MqttBrokerCertCrtPath        string     `env:"MQTT_BROKER_CERT_CRT_PATH,optional"`
+	MqttBrokerCertKeyPath        string     `env:"MQTT_BROKER_CERT_KEY_PATH,optional"`
+	IoIDProjectID                uint64     `env:"IOID_PROJECT_ID,optional"`
+	IoIDRegistryEndpoint         string     `env:"IOID_REGISTRY_ENDPOINT,optional"`
+	IoIDRegistryContractAddr     string     `env:"IOID_REGISTRY_CONTRACT_ADDRESS,optional"`
+	IoIDContractAddr             string     `env:"IOID_CONTRACT_ADDRESS,optional"`
+	ProjectDeviceContractAddr    string     `env:"PROJECT_DEVICE_CONTRACT_ADDRESS,optional"`
+	W3bstreamProjectContractAddr string     `env:"W3BSTREAM_PROJECT_CONTRACT_ADDRESS,optional"`
+	env                          string     `env:"-"`
 }
 
 var (
 	defaultTestnetConfig = &Config{
-		LogLevel:                slog.LevelInfo,
-		BootNodeMultiAddr:       "/dns4/bootnode-0.testnet.iotex.one/tcp/4689/ipfs/12D3KooWFnaTYuLo8Mkbm3wzaWHtUuaxBRe24Uiopu15Wr5EhD3o",
-		DatasourceDSN:           "postgres://postgres:mysecretpassword@postgres:5432/w3bstream?sslmode=disable",
-		IoTeXChainID:            2,
-		ChainEndpoint:           "https://babel-api.testnet.iotex.io",
-		OperatorPrvKey:          "33e6ba3e033131026903f34dfa208feb88c284880530cf76280b68d38041c67b",
-		ProverContractAddr:      "0xab6836908d15E42D30bdEf14cbFA4ad45dCAF3a3",
-		MinterContractAddr:      "0x49C096AE869A3054Db06ffF221b917b41f94CEf3",
-		TaskManagerContractAddr: "0xF0714400a4C0C72007A9F910C5E3007614958636",
-		LocalDBDir:              "./local_db",
-		BeginningBlockNumber:    28685000,
-		env:                     "TESTNET",
+		LogLevel:                     slog.LevelInfo,
+		DatabaseDSN:                  "postgres://postgres:mysecretpassword@postgres:5432/w3bstream?sslmode=disable",
+		ChainEndpoint:                "https://babel-api.testnet.iotex.io",
+		BeginningBlockNumber:         28685000,
+		LocalDBPath:                  "./local_db",
+		MqttBrokerQoS:                "ONCE",
+		MqttBrokerCertCAPath:         "/etc/pebble/root.pem",
+		MqttBrokerCertCrtPath:        "/etc/pebble/tls-cert.pem",
+		MqttBrokerCertKeyPath:        "/etc/pebble/tls-key.pem",
+		IoIDProjectID:                915,
+		IoIDRegistryEndpoint:         "did.iotex.me",
+		IoIDRegistryContractAddr:     "0x0A7e595C7889dF3652A19aF52C18377bF17e027D",
+		IoIDContractAddr:             "0x45Ce3E6f526e597628c73B731a3e9Af7Fc32f5b7",
+		ProjectDeviceContractAddr:    "0xF4d6282C5dDD474663eF9e70c927c0d4926d1CEb",
+		W3bstreamProjectContractAddr: "0x6AfCB0EB71B7246A68Bb9c0bFbe5cD7c11c4839f",
+		env:                          "TESTNET",
 	}
 )
 
