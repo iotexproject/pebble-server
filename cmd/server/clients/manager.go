@@ -12,7 +12,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 
-	"github.com/machinefi/sprout-pebble-sequencer/cmd/sequencer/contract"
+	"github.com/iotexproject/pebble-server/cmd/server/contract"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/machinefi/ioconnect-go/pkg/ioconnect"

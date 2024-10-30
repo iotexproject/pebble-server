@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/stretchr/testify/require"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
+	"github.com/iotexproject/pebble-server/middlewares/blockchain"
 )
 
 func TestMonitorMeta(t *testing.T) {

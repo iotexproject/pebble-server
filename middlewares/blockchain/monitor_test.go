@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xhd2015/xgo/runtime/mock"
 
-	. "github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
+	. "github.com/iotexproject/pebble-server/middlewares/blockchain"
 )
 
 func TestMonitor_Init(t *testing.T) {

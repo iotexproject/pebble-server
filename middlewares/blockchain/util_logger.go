@@ -1,6 +1,6 @@
 package blockchain
 
-import "github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/logger"
+import "github.com/iotexproject/pebble-server/middlewares/logger"
 
 var l = logger.Default
 

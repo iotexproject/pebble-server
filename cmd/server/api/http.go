@@ -13,10 +13,10 @@ import (
 	"github.com/machinefi/ioconnect-go/pkg/ioconnect"
 	"github.com/pkg/errors"
 
-	"github.com/machinefi/sprout-pebble-sequencer/cmd/sequencer/apitypes"
-	"github.com/machinefi/sprout-pebble-sequencer/cmd/sequencer/clients"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
+	"github.com/iotexproject/pebble-server/cmd/server/apitypes"
+	"github.com/iotexproject/pebble-server/cmd/server/clients"
+	"github.com/iotexproject/pebble-server/models"
+	"github.com/iotexproject/pebble-server/modules/event"
 )
 
 type httpServer struct {

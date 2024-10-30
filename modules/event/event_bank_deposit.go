@@ -9,8 +9,8 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
+	"github.com/iotexproject/pebble-server/enums"
+	"github.com/iotexproject/pebble-server/models"
 )
 
 func init() {

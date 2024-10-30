@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/iotexproject/pebble-server/contexts"
 )
 
 func PublicMqttMessage(ctx context.Context, tpe, topic string, v any) error {

@@ -6,8 +6,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xoctopus/x/misc/must"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
+	"github.com/iotexproject/pebble-server/contexts"
+	"github.com/iotexproject/pebble-server/models"
 )
 
 func Migrate(ctx context.Context) *cobra.Command {

@@ -16,9 +16,9 @@ import (
 	"github.com/xoctopus/x/misc/must"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/pebblepb"
+	"github.com/iotexproject/pebble-server/enums"
+	"github.com/iotexproject/pebble-server/models"
+	"github.com/iotexproject/pebble-server/pebblepb"
 )
 
 func init() {

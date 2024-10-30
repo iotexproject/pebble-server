@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/xoctopus/x/misc/must"
 
-	. "github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
+	. "github.com/iotexproject/pebble-server/middlewares/blockchain"
 )
 
 func dir(t *testing.T) string {

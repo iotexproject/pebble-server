@@ -4,7 +4,7 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/machinefi/sprout-pebble-sequencer/util/env"
+	"github.com/iotexproject/pebble-server/util/env"
 )
 
 type Config struct {

@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
+	"github.com/iotexproject/pebble-server/models"
 )
 
 func TestTask_Sign(t *testing.T) {
