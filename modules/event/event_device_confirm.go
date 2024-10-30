@@ -16,10 +16,10 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/pebblepb"
+	"github.com/iotexproject/pebble-server/contexts"
+	"github.com/iotexproject/pebble-server/enums"
+	"github.com/iotexproject/pebble-server/models"
+	"github.com/iotexproject/pebble-server/pebblepb"
 )
 
 func init() {

@@ -5,8 +5,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
+	"github.com/iotexproject/pebble-server/enums"
+	"github.com/iotexproject/pebble-server/middlewares/blockchain"
 )
 
 // config reference: https://github.com/iotexproject/pebble-contracts/blob/main/README.md

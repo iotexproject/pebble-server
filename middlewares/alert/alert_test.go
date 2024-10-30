@@ -3,7 +3,7 @@ package alert_test
 import (
 	"testing"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/alert"
+	"github.com/iotexproject/pebble-server/middlewares/alert"
 )
 
 func TestLarkAlert_Push(t *testing.T) {

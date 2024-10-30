@@ -11,11 +11,11 @@ import (
 	"github.com/xoctopus/x/misc/retry"
 	"gorm.io/gorm"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/crypto"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
+	"github.com/iotexproject/pebble-server/contexts"
+	"github.com/iotexproject/pebble-server/middlewares/crypto"
+	"github.com/iotexproject/pebble-server/middlewares/database"
+	"github.com/iotexproject/pebble-server/models"
+	"github.com/iotexproject/pebble-server/modules/event"
 )
 
 func testctx() context.Context {

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/gorm/schema"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
+	"github.com/iotexproject/pebble-server/models"
 )
 
 func TestTableNames(t *testing.T) {

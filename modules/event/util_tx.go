@@ -4,7 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
+	"github.com/iotexproject/pebble-server/middlewares/blockchain"
 )
 
 type CanSetTxHash interface {

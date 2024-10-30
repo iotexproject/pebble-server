@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
+	"github.com/iotexproject/pebble-server/contexts"
 )
 
 func TestWhiteList_NeedHandle(t *testing.T) {

@@ -6,11 +6,11 @@ import (
 	"github.com/xoctopus/x/contextx"
 	"github.com/xoctopus/x/ptrx"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/alert"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/crypto"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/database"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/logger"
+	"github.com/iotexproject/pebble-server/middlewares/alert"
+	"github.com/iotexproject/pebble-server/middlewares/blockchain"
+	"github.com/iotexproject/pebble-server/middlewares/crypto"
+	"github.com/iotexproject/pebble-server/middlewares/database"
+	"github.com/iotexproject/pebble-server/middlewares/logger"
 )
 
 var (

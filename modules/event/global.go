@@ -13,10 +13,10 @@ import (
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/timer"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/alert"
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/middlewares/blockchain"
+	"github.com/iotexproject/pebble-server/contexts"
+	"github.com/iotexproject/pebble-server/enums"
+	"github.com/iotexproject/pebble-server/middlewares/alert"
+	"github.com/iotexproject/pebble-server/middlewares/blockchain"
 )
 
 type Event interface {

@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/machinefi/sprout-pebble-sequencer/pkg/modules/event"
+	"github.com/iotexproject/pebble-server/modules/event"
 )
 
 func TestNewEvent(t *testing.T) {
