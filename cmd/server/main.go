@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"log"
 	"log/slog"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"github.com/google/uuid"
 	"github.com/pkg/errors"
@@ -16,7 +18,9 @@ import (
 	"github.com/iotexproject/pebble-server/cmd/server/api"
 	"github.com/iotexproject/pebble-server/cmd/server/clients"
 	"github.com/iotexproject/pebble-server/cmd/server/commands"
+	"github.com/iotexproject/pebble-server/cmd/server/config"
 	"github.com/iotexproject/pebble-server/contexts"
+	"github.com/iotexproject/pebble-server/db"
 	"github.com/iotexproject/pebble-server/middlewares/alert"
 	"github.com/iotexproject/pebble-server/middlewares/blockchain"
 	"github.com/iotexproject/pebble-server/middlewares/crypto"
@@ -34,8 +38,8 @@ var (
 	CommitID string
 	Date     string
 
-	app    *confapp.AppCtx
-	config = &struct {
+	app     *confapp.AppCtx
+	config1 = &struct {
 		DryRun                          bool
 		MqttBroker                      *confmqtt.Broker
 		Database                        *database.Postgres
@@ -183,9 +187,19 @@ func Main() error {
 }
 
 func main() {
-	if err := app.Command.Execute(); err != nil {
-		app.PrintErrln(err)
+	cfg, err := config.Get()
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "failed to get config"))
 	}
-	config.Blockchain.Close()
-	os.Exit(-1)
+	cfg.Print()
+	slog.Info("pebble server config loaded")
+
+	db, err := db.New(cfg.DatabaseDSN)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "failed to new db"))
+	}
+
+	done := make(chan os.Signal, 1)
+	signal.Notify(done, syscall.SIGINT, syscall.SIGTERM)
+	<-done
 }
