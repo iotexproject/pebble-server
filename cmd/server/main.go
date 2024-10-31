@@ -137,7 +137,7 @@ func runHTTP(ctx context.Context) {
 		panic(errors.Wrap(err, "failed to new clients manager"))
 	}
 	go func() {
-		if err := api.NewHttpServer(ctx, jwk, clientMgr).Run(":9000"); err != nil {
+		if err := api.Run(ctx, jwk, clientMgr, ":9000"); err != nil {
 			panic(err)
 		}
 	}()
