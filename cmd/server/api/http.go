@@ -26,7 +26,7 @@ type httpServer struct {
 	clients *clients.Manager
 }
 
-func NewHttpServer(ctx context.Context, jwk *ioconnect.JWK, clientMgr *clients.Manager) *httpServer {
+func Run(ctx context.Context, jwk *ioconnect.JWK, clientMgr *clients.Manager, address string) error {
 	s := &httpServer{
 		ctx:     ctx,
 		engine:  gin.Default(),
@@ -34,28 +34,13 @@ func NewHttpServer(ctx context.Context, jwk *ioconnect.JWK, clientMgr *clients.M
 		clients: clientMgr,
 	}
 
-	slog.Debug("jwk information",
-		"did:io", jwk.DID(),
-		"did:io#key", jwk.KID(),
-		"ka did:io", jwk.KeyAgreementDID(),
-		"ka did:io#key", jwk.KeyAgreementKID(),
-		"doc", jwk.Doc(),
-	)
-
 	s.engine.POST("/issue_vc", s.issueJWTCredential)
 	s.engine.POST("/device/data", s.verifyToken, s.receiveDeviceData)
 	s.engine.GET("/device/query", s.verifyToken, s.queryDeviceState)
 	s.engine.GET("/didDoc", s.didDoc)
 
-	return s
-}
-
-// this func will block caller
-func (s *httpServer) Run(address string) error {
-	if err := s.engine.Run(address); err != nil {
-		return errors.Wrap(err, "failed to start http server")
-	}
-	return nil
+	err := s.engine.Run(address)
+	return errors.Wrap(err, "failed to start http server")
 }
 
 // verifyToken make sure the client token is issued by sequencer
