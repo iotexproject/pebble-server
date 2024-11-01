@@ -5,12 +5,11 @@ name: build_image
 
 on:
   push:
-    branches: [ "main" ]
     tags: [ "v*.*.*" ]
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: machinefi/pebble-sequencer
+  IMAGE_NAME: iotexproject/pebble-server
 
 jobs:
   build_image:
@@ -36,7 +35,7 @@ jobs:
       - uses: docker/setup-buildx-action@v3
 
       - name: Login to registry ${{ env.REGISTRY }}
-        id: pebble-sequencer
+        id: pebble-server
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -54,7 +53,7 @@ jobs:
         with:
           context: .
           platform: linux/amd64,linux/arm64
-          file: cmd/sequencer/Dockerfile
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
