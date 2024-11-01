@@ -1,14 +1,19 @@
 package config
 
 import (
+	"fmt"
 	"log/slog"
 	"os"
+	"reflect"
+	"strings"
 
-	"github.com/iotexproject/pebble-server/util/env"
+	"github.com/fatih/color"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
 	LogLevel                     slog.Level `env:"LOG_LEVEL,optional"`
+	ServiceEndpoint              string     `env:"HTTP_SERVICE_ENDPOINT"`
 	DatabaseDSN                  string     `env:"DATABASE_DSN"`
 	ChainEndpoint                string     `env:"CHAIN_ENDPOINT,optional"`
 	BeginningBlockNumber         uint64     `env:"BEGINNING_BLOCK_NUMBER,optional"`
@@ -31,6 +36,7 @@ type Config struct {
 var (
 	defaultTestnetConfig = &Config{
 		LogLevel:                     slog.LevelInfo,
+		ServiceEndpoint:              ":9000",
 		DatabaseDSN:                  "postgres://postgres:mysecretpassword@postgres:5432/w3bstream?sslmode=disable",
 		ChainEndpoint:                "https://babel-api.testnet.iotex.io",
 		BeginningBlockNumber:         28685000,
@@ -50,7 +56,7 @@ var (
 )
 
 func (c *Config) init() error {
-	if err := env.ParseEnv(c); err != nil {
+	if err := parseEnv(c); err != nil {
 		return err
 	}
 	h := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.Level(c.LogLevel)})
@@ -76,5 +82,74 @@ func Get() (*Config, error) {
 }
 
 func (c *Config) Print() {
-	env.Print(c)
+	print(c)
+}
+
+func parseEnvTag(tag string) (key string, require bool) {
+	if tag == "" || tag == "-" {
+		return "", false
+	}
+	tagKeys := strings.Split(tag, ",")
+	key = tagKeys[0]
+	if len(tagKeys) > 1 && tagKeys[1] == "optional" {
+		return key, false
+	}
+	return key, true
+}
+
+func parseEnv(c any) error {
+	rv := reflect.ValueOf(c).Elem()
+	rt := reflect.TypeOf(c).Elem()
+
+	for i := 0; i < rt.NumField(); i++ {
+		fi := rt.Field(i)
+		fv := rv.Field(i)
+		key, require := parseEnvTag(fi.Tag.Get("env"))
+		if key == "" {
+			continue
+		}
+		viper.MustBindEnv(key)
+
+		v := viper.Get(key)
+		if require && v == nil && fv.IsZero() {
+			panic(fmt.Sprintf("env `%s` is require but got empty", key))
+		}
+		if v == nil {
+			continue
+		}
+
+		switch fv.Kind() {
+		case reflect.String:
+			fv.Set(reflect.ValueOf(viper.GetString(key)))
+		case reflect.Int:
+			if fi.Type == reflect.TypeOf(slog.Level(0)) {
+				level := slog.Level(viper.GetInt(key))
+				fv.Set(reflect.ValueOf(level))
+			} else {
+				fv.Set(reflect.ValueOf(viper.GetInt(key)))
+			}
+		case reflect.Uint64:
+			fv.Set(reflect.ValueOf(viper.GetUint64(key)))
+		}
+	}
+	return nil
+}
+
+func print(c any) {
+	rt := reflect.TypeOf(c).Elem()
+	rv := reflect.ValueOf(c).Elem()
+
+	if env, ok := c.(interface{ Env() string }); ok {
+		fmt.Println(color.CyanString("ENV: %s", env.Env()))
+	}
+
+	for i := 0; i < rt.NumField(); i++ {
+		fi := rt.Field(i)
+		fv := rv.Field(i)
+		key, _ := parseEnvTag(fi.Tag.Get("env"))
+		if key == "" {
+			continue
+		}
+		fmt.Printf("%s: %v\n", color.GreenString(key), fv.Interface())
+	}
 }
