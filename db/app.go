@@ -7,6 +7,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -57,4 +58,15 @@ func (d *DB) UpsertApp(projectID uint64, name string, key [32]byte, value []byte
 		DoUpdates: clause.AssignmentColumns([]string{"version", "uri", "updated_at"}),
 	}).Create(&t).Error
 	return errors.Wrap(err, "failed to upsert app")
+}
+
+func (d *DB) App(id string) (*App, error) {
+	t := App{}
+	if err := d.db.Where("id = ?", id).First(&t).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to query app")
+	}
+	return &t, nil
 }

@@ -1,5 +1,10 @@
 package db
 
+import (
+	"github.com/pkg/errors"
+	"gorm.io/gorm"
+)
+
 const (
 	CREATED int32 = iota
 	PROPOSAL
@@ -32,3 +37,14 @@ type Device struct {
 }
 
 func (*Device) TableName() string { return "device" }
+
+func (d *DB) Device(id string) (*Device, error) {
+	t := Device{}
+	if err := d.db.Where("id = ?", id).First(&t).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to query device")
+	}
+	return &t, nil
+}
