@@ -15,8 +15,6 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
 
-	"github.com/iotexproject/pebble-server/contract/ioid"
-	"github.com/iotexproject/pebble-server/contract/ioidregistry"
 	"github.com/iotexproject/pebble-server/contract/project"
 )
 
@@ -40,13 +38,11 @@ type ContractAddr struct {
 
 type contract struct {
 	h                    *Handler
-	addr                 *ContractAddr
+	projectAddr          common.Address
 	beginningBlockNumber uint64
 	listStepSize         uint64
 	watchInterval        time.Duration
 	client               *ethclient.Client
-	ioidInstance         *ioid.Ioid
-	ioidRegistryInstance *ioidregistry.Ioidregistry
 	projectInstance      *project.Project
 }
 
@@ -56,10 +52,6 @@ var (
 
 var allTopic = []common.Hash{
 	projectAddMetadataTopic,
-}
-
-func (a *ContractAddr) all() []common.Address {
-	return []common.Address{a.IOID, a.IOIDRegistry}
 }
 
 func (c *contract) processLogs(logs []types.Log) error {
@@ -94,7 +86,7 @@ func (c *contract) list() (uint64, error) {
 	head = max(head, h)
 
 	query := ethereum.FilterQuery{
-		Addresses: c.addr.all(),
+		Addresses: []common.Address{c.projectAddr},
 		Topics:    [][]common.Hash{allTopic},
 	}
 	ctx := context.Background()
@@ -135,7 +127,7 @@ func (c *contract) list() (uint64, error) {
 func (c *contract) watch(listedBlockNumber uint64) {
 	scannedBlockNumber := listedBlockNumber
 	query := ethereum.FilterQuery{
-		Addresses: c.addr.all(),
+		Addresses: []common.Address{c.projectAddr},
 		Topics:    [][]common.Hash{allTopic},
 	}
 	ticker := time.NewTicker(c.watchInterval)
@@ -167,34 +159,19 @@ func (c *contract) watch(listedBlockNumber uint64) {
 	}()
 }
 
-func Run(h *Handler, addr *ContractAddr, beginningBlockNumber uint64, chainEndpoint string) error {
-	client, err := ethclient.Dial(chainEndpoint)
-	if err != nil {
-		return errors.Wrap(err, "failed to dial chain endpoint")
-	}
-
-	ioidInstance, err := ioid.NewIoid(addr.IOID, client)
-	if err != nil {
-		return errors.Wrap(err, "failed to new ioid contract instance")
-	}
-	ioidRegistryInstance, err := ioidregistry.NewIoidregistry(addr.IOIDRegistry, client)
-	if err != nil {
-		return errors.Wrap(err, "failed to new ioid registry contract instance")
-	}
-	projectInstance, err := project.NewProject(addr.Project, client)
+func Run(h *Handler, projectAddr common.Address, beginningBlockNumber uint64, client *ethclient.Client) error {
+	projectInstance, err := project.NewProject(projectAddr, client)
 	if err != nil {
 		return errors.Wrap(err, "failed to new project contract instance")
 	}
 
 	c := &contract{
 		h:                    h,
-		addr:                 addr,
+		projectAddr:          projectAddr,
 		beginningBlockNumber: beginningBlockNumber,
 		listStepSize:         500,
 		watchInterval:        1 * time.Second,
 		client:               client,
-		ioidInstance:         ioidInstance,
-		ioidRegistryInstance: ioidRegistryInstance,
 		projectInstance:      projectInstance,
 	}
 
