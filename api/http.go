@@ -73,29 +73,12 @@ func (s *httpServer) query(c *gin.Context) {
 	sigStr := req.Signature
 	req.Signature = ""
 
-	reqJson, err := json.Marshal(req)
+	owner, err := s.owner(sigStr, req)
 	if err != nil {
-		slog.Error("failed to marshal request into json format", "error", err)
-		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to process request data")))
+		slog.Error("failed to recover owner from signature", "error", err)
+		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to recover owner from signature")))
 		return
 	}
-
-	sig, err := hexutil.Decode(sigStr)
-	if err != nil {
-		slog.Error("failed to decode signature from hex format", "signature", sigStr, "error", err)
-		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "invalid signature format")))
-		return
-	}
-
-	h := crypto.Keccak256Hash(reqJson)
-	sigpk, err := crypto.SigToPub(h.Bytes(), sig)
-	if err != nil {
-		slog.Error("failed to recover public key from signature", "error", err)
-		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "invalid signature; could not recover public key")))
-		return
-	}
-
-	owner := crypto.PubkeyToAddress(*sigpk)
 
 	d, err := s.db.Device(req.DeviceID)
 	if err != nil {
@@ -153,29 +136,12 @@ func (s *httpServer) receive(c *gin.Context) {
 	sigStr := req.Signature
 	req.Signature = ""
 
-	reqJson, err := json.Marshal(req)
+	owner, err := s.owner(sigStr, req)
 	if err != nil {
-		slog.Error("failed to marshal request into json format", "error", err)
-		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to process request data")))
+		slog.Error("failed to recover owner from signature", "error", err)
+		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to recover owner from signature")))
 		return
 	}
-
-	sig, err := hexutil.Decode(sigStr)
-	if err != nil {
-		slog.Error("failed to decode signature from hex format", "signature", sigStr, "error", err)
-		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "invalid signature format")))
-		return
-	}
-
-	h := crypto.Keccak256Hash(reqJson)
-	sigpk, err := crypto.SigToPub(h.Bytes(), sig)
-	if err != nil {
-		slog.Error("failed to recover public key from signature", "error", err)
-		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "invalid signature; could not recover public key")))
-		return
-	}
-
-	owner := crypto.PubkeyToAddress(*sigpk)
 
 	d, err := s.db.Device(req.DeviceID)
 	if err != nil {
@@ -222,7 +188,6 @@ func (s *httpServer) receive(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to upsert device")))
 			return
 		}
-		d = dev
 	}
 
 	payload, err := base64.RawURLEncoding.DecodeString(req.Payload)
@@ -231,18 +196,37 @@ func (s *httpServer) receive(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to decode base64 data")))
 		return
 	}
-	binPkg, data, err := s.unmarshalPayload(payload)
+	pkg, data, err := s.unmarshalPayload(payload)
 	if err != nil {
 		slog.Error("failed to unmarshal payload", "error", err)
 		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to unmarshal payload")))
 		return
 	}
-	if err := s.handle(binPkg, data, d); err != nil {
+	if err := s.handle(req.DeviceID, pkg, data); err != nil {
 		slog.Error("failed to handle payload data", "error", err)
 		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to handle payload data")))
 		return
 	}
 	c.Status(http.StatusOK)
+}
+
+func (s *httpServer) owner(sigStr string, o any) (common.Address, error) {
+	reqJson, err := json.Marshal(o)
+	if err != nil {
+		return common.Address{}, errors.Wrap(err, "failed to marshal request into json format")
+
+	}
+	sig, err := hexutil.Decode(sigStr)
+	if err != nil {
+		return common.Address{}, errors.Wrapf(err, "failed to decode signature from hex format, signature %s", sigStr)
+	}
+
+	h := crypto.Keccak256Hash(reqJson)
+	sigpk, err := crypto.SigToPub(h.Bytes(), sig)
+	if err != nil {
+		return common.Address{}, errors.Wrap(err, "failed to recover public key from signature")
+	}
+	return crypto.PubkeyToAddress(*sigpk), nil
 }
 
 func (s *httpServer) unmarshalPayload(payload []byte) (*proto.BinPackage, goproto.Message, error) {
@@ -267,43 +251,43 @@ func (s *httpServer) unmarshalPayload(payload []byte) (*proto.BinPackage, goprot
 	return pkg, d, errors.Wrapf(err, "failed to unmarshal senser package")
 }
 
-func (s *httpServer) handle(binpkg *proto.BinPackage, data goproto.Message, d *db.Device) (err error) {
-	switch pkg := data.(type) {
+func (s *httpServer) handle(id string, pkg *proto.BinPackage, data goproto.Message) (err error) {
+	switch data := data.(type) {
 	case *proto.SensorConfig:
-		err = s.handleConfig(d, pkg)
+		err = s.handleConfig(id, data)
 	case *proto.SensorState:
-		err = s.handleState(d, pkg)
+		err = s.handleState(id, data)
 	case *proto.SensorData:
-		err = s.handleSensor(binpkg, d, pkg)
+		err = s.handleSensor(id, pkg, data)
 	}
 	return errors.Wrapf(err, "failed to handle %T", data)
 }
 
-func (s *httpServer) handleConfig(dev *db.Device, pkg *proto.SensorConfig) error {
-	err := s.db.UpdateByID(dev.ID, map[string]any{
-		"bulk_upload":               int32(pkg.GetBulkUpload()),
-		"data_channel":              int32(pkg.GetDataChannel()),
-		"upload_period":             int32(pkg.GetUploadPeriod()),
-		"bulk_upload_sampling_cnt":  int32(pkg.GetBulkUploadSamplingCnt()),
-		"bulk_upload_sampling_freq": int32(pkg.GetBulkUploadSamplingFreq()),
-		"beep":                      int32(pkg.GetBeep()),
-		"real_firmware":             pkg.GetFirmware(),
-		"configurable":              pkg.GetDeviceConfigurable(),
+func (s *httpServer) handleConfig(id string, data *proto.SensorConfig) error {
+	err := s.db.UpdateByID(id, map[string]any{
+		"bulk_upload":               int32(data.GetBulkUpload()),
+		"data_channel":              int32(data.GetDataChannel()),
+		"upload_period":             int32(data.GetUploadPeriod()),
+		"bulk_upload_sampling_cnt":  int32(data.GetBulkUploadSamplingCnt()),
+		"bulk_upload_sampling_freq": int32(data.GetBulkUploadSamplingFreq()),
+		"beep":                      int32(data.GetBeep()),
+		"real_firmware":             data.GetFirmware(),
+		"configurable":              data.GetDeviceConfigurable(),
 		"updated_at":                time.Now(),
 	})
-	return errors.Wrapf(err, "failed to update device config: %s", dev.ID)
+	return errors.Wrapf(err, "failed to update device config: %s", id)
 }
 
-func (s *httpServer) handleState(dev *db.Device, pkg *proto.SensorState) error {
-	err := s.db.UpdateByID(dev.ID, map[string]any{
-		"state":      int32(pkg.GetState()),
+func (s *httpServer) handleState(id string, data *proto.SensorState) error {
+	err := s.db.UpdateByID(id, map[string]any{
+		"state":      int32(data.GetState()),
 		"updated_at": time.Now(),
 	})
-	return errors.Wrapf(err, "failed to update device state: %s %d", dev.ID, int32(pkg.GetState()))
+	return errors.Wrapf(err, "failed to update device state: %s %d", id, int32(data.GetState()))
 }
 
-func (s *httpServer) handleSensor(binpkg *proto.BinPackage, dev *db.Device, pkg *proto.SensorData) error {
-	snr := float64(pkg.GetSnr())
+func (s *httpServer) handleSensor(id string, pkg *proto.BinPackage, data *proto.SensorData) error {
+	snr := float64(data.GetSnr())
 	if snr > 2700 {
 		snr = 100
 	} else if snr < 700 {
@@ -312,7 +296,7 @@ func (s *httpServer) handleSensor(binpkg *proto.BinPackage, dev *db.Device, pkg 
 		snr, _ = big.NewFloat((snr-700)*0.0375 + 25).Float64()
 	}
 
-	vbat := (float64(pkg.GetVbat()) - 320) / 90
+	vbat := (float64(data.GetVbat()) - 320) / 90
 	if vbat > 1 {
 		vbat = 100
 	} else if vbat < 0.1 {
@@ -321,31 +305,37 @@ func (s *httpServer) handleSensor(binpkg *proto.BinPackage, dev *db.Device, pkg 
 		vbat *= 100
 	}
 
-	gyroscope, _ := json.Marshal(pkg.GetGyroscope())
-	accelerometer, _ := json.Marshal(pkg.GetAccelerometer())
+	gyroscope, err := json.Marshal(data.GetGyroscope())
+	if err != nil {
+		errors.Wrap(err, "failed to marshal gyroscope data")
+	}
+	accelerometer, err := json.Marshal(data.GetAccelerometer())
+	if err != nil {
+		errors.Wrap(err, "failed to marshal accelerometer data")
+	}
 
 	dr := &db.DeviceRecord{
-		ID:             dev.ID + "-" + fmt.Sprintf("%d", binpkg.GetTimestamp()),
-		Imei:           dev.ID,
-		Timestamp:      int64(binpkg.GetTimestamp()),
-		Signature:      hex.EncodeToString(append(binpkg.GetSignature(), 0)),
+		ID:             id + "-" + fmt.Sprintf("%d", pkg.GetTimestamp()),
+		Imei:           id,
+		Timestamp:      int64(pkg.GetTimestamp()),
+		Signature:      hex.EncodeToString(append(pkg.GetSignature(), 0)),
 		Operator:       "",
 		Snr:            strconv.FormatFloat(snr, 'f', 1, 64),
 		Vbat:           strconv.FormatFloat(vbat, 'f', 1, 64),
-		Latitude:       decimal.NewFromInt32(pkg.GetLatitude()).Div(decimal.NewFromInt32(10000000)).StringFixed(7),
-		Longitude:      decimal.NewFromInt32(pkg.GetLongitude()).Div(decimal.NewFromInt32(10000000)).StringFixed(7),
-		GasResistance:  decimal.NewFromInt32(int32(pkg.GetGasResistance())).Div(decimal.NewFromInt32(100)).StringFixed(2),
-		Temperature:    decimal.NewFromInt32(pkg.GetTemperature()).Div(decimal.NewFromInt32(100)).StringFixed(2),
-		Temperature2:   decimal.NewFromInt32(int32(pkg.GetTemperature2())).Div(decimal.NewFromInt32(100)).StringFixed(2),
-		Pressure:       decimal.NewFromInt32(int32(pkg.GetPressure())).Div(decimal.NewFromInt32(100)).StringFixed(2),
-		Humidity:       decimal.NewFromInt32(int32(pkg.GetHumidity())).Div(decimal.NewFromInt32(100)).StringFixed(2),
-		Light:          decimal.NewFromInt32(int32(pkg.GetLight())).Div(decimal.NewFromInt32(100)).StringFixed(2),
+		Latitude:       decimal.NewFromInt32(data.GetLatitude()).Div(decimal.NewFromInt32(10000000)).StringFixed(7),
+		Longitude:      decimal.NewFromInt32(data.GetLongitude()).Div(decimal.NewFromInt32(10000000)).StringFixed(7),
+		GasResistance:  decimal.NewFromInt32(int32(data.GetGasResistance())).Div(decimal.NewFromInt32(100)).StringFixed(2),
+		Temperature:    decimal.NewFromInt32(data.GetTemperature()).Div(decimal.NewFromInt32(100)).StringFixed(2),
+		Temperature2:   decimal.NewFromInt32(int32(data.GetTemperature2())).Div(decimal.NewFromInt32(100)).StringFixed(2),
+		Pressure:       decimal.NewFromInt32(int32(data.GetPressure())).Div(decimal.NewFromInt32(100)).StringFixed(2),
+		Humidity:       decimal.NewFromInt32(int32(data.GetHumidity())).Div(decimal.NewFromInt32(100)).StringFixed(2),
+		Light:          decimal.NewFromInt32(int32(data.GetLight())).Div(decimal.NewFromInt32(100)).StringFixed(2),
 		Gyroscope:      string(gyroscope),
 		Accelerometer:  string(accelerometer),
 		OperationTimes: db.NewOperationTimes(),
 	}
-	err := s.db.CreateDeviceRecord(dr)
-	return errors.Wrapf(err, "failed to create senser data: %s", dev.ID)
+	err = s.db.CreateDeviceRecord(dr)
+	return errors.Wrapf(err, "failed to create senser data: %s", id)
 }
 
 func Run(db *db.DB, address string, client *ethclient.Client, ioidAddr, ioidRegistryAddr common.Address) error {
