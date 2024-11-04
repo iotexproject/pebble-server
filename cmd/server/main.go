@@ -7,11 +7,13 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 
 	"github.com/iotexproject/pebble-server/api"
 	"github.com/iotexproject/pebble-server/cmd/server/config"
 	"github.com/iotexproject/pebble-server/db"
+	"github.com/iotexproject/pebble-server/monitor"
 )
 
 func main() {
@@ -22,9 +24,24 @@ func main() {
 	cfg.Print()
 	slog.Info("pebble server config loaded")
 
-	db, err := db.New(cfg.DatabaseDSN)
+	db, err := db.New(cfg.DatabaseDSN, cfg.IoIDProjectID)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "failed to new db"))
+	}
+
+	if err := monitor.Run(
+		&monitor.Handler{
+			ScannedBlockNumber:       db.ScannedBlockNumber,
+			UpsertScannedBlockNumber: db.UpsertScannedBlockNumber,
+			UpsertProjectMetadata:    db.UpsertApp,
+		},
+		&monitor.ContractAddr{
+			Project: common.HexToAddress(cfg.ProjectContractAddr),
+		},
+		cfg.BeginningBlockNumber,
+		cfg.ChainEndpoint,
+	); err != nil {
+		log.Fatal(errors.Wrap(err, "failed to run contract monitor"))
 	}
 
 	go func() {
