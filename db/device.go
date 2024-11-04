@@ -3,6 +3,7 @@ package db
 import (
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 const (
@@ -47,4 +48,17 @@ func (d *DB) Device(id string) (*Device, error) {
 		return nil, errors.Wrap(err, "failed to query device")
 	}
 	return &t, nil
+}
+
+func (d *DB) UpsertDevice(t *Device) error {
+	err := d.db.Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "id"}},
+		DoUpdates: clause.AssignmentColumns([]string{"owner", "address", "status", "proposer", "updated_at"}),
+	}).Create(t).Error
+	return errors.Wrap(err, "failed to upsert device")
+}
+
+func (d *DB) UpdateByID(id string, values map[string]any) error {
+	err := d.db.Model(&Device{}).Where("id = ?", id).Updates(values).Error
+	return errors.Wrap(err, "failed to update device")
 }

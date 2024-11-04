@@ -1,5 +1,9 @@
 package db
 
+import (
+	"github.com/pkg/errors"
+)
+
 type DeviceRecord struct {
 	ID            string `gorm:"primary_key"`
 	Imei          string `gorm:"index:device_record_imei;not null"`
@@ -23,3 +27,8 @@ type DeviceRecord struct {
 }
 
 func (*DeviceRecord) TableName() string { return "device_record" }
+
+func (d *DB) CreateDeviceRecord(t *DeviceRecord) error {
+	err := d.db.Create(t).Error
+	return errors.Wrap(err, "failed to create device record")
+}
