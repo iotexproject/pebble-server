@@ -8,10 +8,11 @@ import (
 )
 
 type DB struct {
-	db *gorm.DB
+	ioidProjectID uint64
+	db            *gorm.DB
 }
 
-func New(dsn string) (*DB, error) {
+func New(dsn string, ioidProjectID uint64) (*DB, error) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
@@ -19,6 +20,7 @@ func New(dsn string) (*DB, error) {
 		return nil, errors.Wrap(err, "failed to connect postgres")
 	}
 	if err := db.AutoMigrate(
+		&scannedBlockNumber{},
 		&Account{},
 		&App{},
 		&AppV2{},
@@ -31,5 +33,5 @@ func New(dsn string) (*DB, error) {
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to migrate model")
 	}
-	return &DB{db}, nil
+	return &DB{ioidProjectID, db}, nil
 }

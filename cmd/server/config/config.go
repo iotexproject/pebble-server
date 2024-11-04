@@ -30,6 +30,7 @@ type Config struct {
 	IoIDContractAddr             string     `env:"IOID_CONTRACT_ADDRESS,optional"`
 	ProjectDeviceContractAddr    string     `env:"PROJECT_DEVICE_CONTRACT_ADDRESS,optional"`
 	W3bstreamProjectContractAddr string     `env:"W3BSTREAM_PROJECT_CONTRACT_ADDRESS,optional"`
+	ProjectContractAddr          string     `env:"PROJECT_CONTRACT_ADDRESS,optional"`
 	env                          string     `env:"-"`
 }
 
@@ -51,6 +52,7 @@ var (
 		IoIDContractAddr:             "0x45Ce3E6f526e597628c73B731a3e9Af7Fc32f5b7",
 		ProjectDeviceContractAddr:    "0xF4d6282C5dDD474663eF9e70c927c0d4926d1CEb",
 		W3bstreamProjectContractAddr: "0x6AfCB0EB71B7246A68Bb9c0bFbe5cD7c11c4839f",
+		ProjectContractAddr:          "0xf07336E1c77319B4e740b666eb0C2B19D11fc14F",
 		env:                          "TESTNET",
 	}
 )
