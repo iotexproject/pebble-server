@@ -73,29 +73,12 @@ func (s *httpServer) query(c *gin.Context) {
 	sigStr := req.Signature
 	req.Signature = ""
 
-	reqJson, err := json.Marshal(req)
+	owner, err := s.owner(sigStr, req)
 	if err != nil {
-		slog.Error("failed to marshal request into json format", "error", err)
-		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to process request data")))
+		slog.Error("failed to recover owner from signature", "error", err)
+		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to recover owner from signature")))
 		return
 	}
-
-	sig, err := hexutil.Decode(sigStr)
-	if err != nil {
-		slog.Error("failed to decode signature from hex format", "signature", sigStr, "error", err)
-		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "invalid signature format")))
-		return
-	}
-
-	h := crypto.Keccak256Hash(reqJson)
-	sigpk, err := crypto.SigToPub(h.Bytes(), sig)
-	if err != nil {
-		slog.Error("failed to recover public key from signature", "error", err)
-		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "invalid signature; could not recover public key")))
-		return
-	}
-
-	owner := crypto.PubkeyToAddress(*sigpk)
 
 	d, err := s.db.Device(req.DeviceID)
 	if err != nil {
@@ -153,29 +136,12 @@ func (s *httpServer) receive(c *gin.Context) {
 	sigStr := req.Signature
 	req.Signature = ""
 
-	reqJson, err := json.Marshal(req)
+	owner, err := s.owner(sigStr, req)
 	if err != nil {
-		slog.Error("failed to marshal request into json format", "error", err)
-		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to process request data")))
+		slog.Error("failed to recover owner from signature", "error", err)
+		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to recover owner from signature")))
 		return
 	}
-
-	sig, err := hexutil.Decode(sigStr)
-	if err != nil {
-		slog.Error("failed to decode signature from hex format", "signature", sigStr, "error", err)
-		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "invalid signature format")))
-		return
-	}
-
-	h := crypto.Keccak256Hash(reqJson)
-	sigpk, err := crypto.SigToPub(h.Bytes(), sig)
-	if err != nil {
-		slog.Error("failed to recover public key from signature", "error", err)
-		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "invalid signature; could not recover public key")))
-		return
-	}
-
-	owner := crypto.PubkeyToAddress(*sigpk)
 
 	d, err := s.db.Device(req.DeviceID)
 	if err != nil {
@@ -222,7 +188,6 @@ func (s *httpServer) receive(c *gin.Context) {
 			c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to upsert device")))
 			return
 		}
-		d = dev
 	}
 
 	payload, err := base64.RawURLEncoding.DecodeString(req.Payload)
@@ -231,18 +196,37 @@ func (s *httpServer) receive(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to decode base64 data")))
 		return
 	}
-	binPkg, data, err := s.unmarshalPayload(payload)
+	binPkg, payloadData, err := s.unmarshalPayload(payload)
 	if err != nil {
 		slog.Error("failed to unmarshal payload", "error", err)
 		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to unmarshal payload")))
 		return
 	}
-	if err := s.handle(binPkg, data, d); err != nil {
+	if err := s.handle(req.DeviceID, binPkg, payloadData); err != nil {
 		slog.Error("failed to handle payload data", "error", err)
 		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to handle payload data")))
 		return
 	}
 	c.Status(http.StatusOK)
+}
+
+func (s *httpServer) owner(sigStr string, o any) (common.Address, error) {
+	reqJson, err := json.Marshal(o)
+	if err != nil {
+		return common.Address{}, errors.Wrap(err, "failed to marshal request into json format")
+
+	}
+	sig, err := hexutil.Decode(sigStr)
+	if err != nil {
+		return common.Address{}, errors.Wrapf(err, "failed to decode signature from hex format, signature %s", sigStr)
+	}
+
+	h := crypto.Keccak256Hash(reqJson)
+	sigpk, err := crypto.SigToPub(h.Bytes(), sig)
+	if err != nil {
+		return common.Address{}, errors.Wrap(err, "failed to recover public key from signature")
+	}
+	return crypto.PubkeyToAddress(*sigpk), nil
 }
 
 func (s *httpServer) unmarshalPayload(payload []byte) (*proto.BinPackage, goproto.Message, error) {
@@ -267,20 +251,20 @@ func (s *httpServer) unmarshalPayload(payload []byte) (*proto.BinPackage, goprot
 	return pkg, d, errors.Wrapf(err, "failed to unmarshal senser package")
 }
 
-func (s *httpServer) handle(binpkg *proto.BinPackage, data goproto.Message, d *db.Device) (err error) {
+func (s *httpServer) handle(id string, binpkg *proto.BinPackage, data goproto.Message) (err error) {
 	switch pkg := data.(type) {
 	case *proto.SensorConfig:
-		err = s.handleConfig(d, pkg)
+		err = s.handleConfig(id, pkg)
 	case *proto.SensorState:
-		err = s.handleState(d, pkg)
+		err = s.handleState(id, pkg)
 	case *proto.SensorData:
-		err = s.handleSensor(binpkg, d, pkg)
+		err = s.handleSensor(id, binpkg, pkg)
 	}
 	return errors.Wrapf(err, "failed to handle %T", data)
 }
 
-func (s *httpServer) handleConfig(dev *db.Device, pkg *proto.SensorConfig) error {
-	err := s.db.UpdateByID(dev.ID, map[string]any{
+func (s *httpServer) handleConfig(id string, pkg *proto.SensorConfig) error {
+	err := s.db.UpdateByID(id, map[string]any{
 		"bulk_upload":               int32(pkg.GetBulkUpload()),
 		"data_channel":              int32(pkg.GetDataChannel()),
 		"upload_period":             int32(pkg.GetUploadPeriod()),
@@ -291,18 +275,18 @@ func (s *httpServer) handleConfig(dev *db.Device, pkg *proto.SensorConfig) error
 		"configurable":              pkg.GetDeviceConfigurable(),
 		"updated_at":                time.Now(),
 	})
-	return errors.Wrapf(err, "failed to update device config: %s", dev.ID)
+	return errors.Wrapf(err, "failed to update device config: %s", id)
 }
 
-func (s *httpServer) handleState(dev *db.Device, pkg *proto.SensorState) error {
-	err := s.db.UpdateByID(dev.ID, map[string]any{
+func (s *httpServer) handleState(id string, pkg *proto.SensorState) error {
+	err := s.db.UpdateByID(id, map[string]any{
 		"state":      int32(pkg.GetState()),
 		"updated_at": time.Now(),
 	})
-	return errors.Wrapf(err, "failed to update device state: %s %d", dev.ID, int32(pkg.GetState()))
+	return errors.Wrapf(err, "failed to update device state: %s %d", id, int32(pkg.GetState()))
 }
 
-func (s *httpServer) handleSensor(binpkg *proto.BinPackage, dev *db.Device, pkg *proto.SensorData) error {
+func (s *httpServer) handleSensor(id string, binpkg *proto.BinPackage, pkg *proto.SensorData) error {
 	snr := float64(pkg.GetSnr())
 	if snr > 2700 {
 		snr = 100
@@ -321,12 +305,18 @@ func (s *httpServer) handleSensor(binpkg *proto.BinPackage, dev *db.Device, pkg 
 		vbat *= 100
 	}
 
-	gyroscope, _ := json.Marshal(pkg.GetGyroscope())
-	accelerometer, _ := json.Marshal(pkg.GetAccelerometer())
+	gyroscope, err := json.Marshal(pkg.GetGyroscope())
+	if err != nil {
+		errors.Wrap(err, "failed to marshal gyroscope data")
+	}
+	accelerometer, err := json.Marshal(pkg.GetAccelerometer())
+	if err != nil {
+		errors.Wrap(err, "failed to marshal accelerometer data")
+	}
 
 	dr := &db.DeviceRecord{
-		ID:             dev.ID + "-" + fmt.Sprintf("%d", binpkg.GetTimestamp()),
-		Imei:           dev.ID,
+		ID:             id + "-" + fmt.Sprintf("%d", binpkg.GetTimestamp()),
+		Imei:           id,
 		Timestamp:      int64(binpkg.GetTimestamp()),
 		Signature:      hex.EncodeToString(append(binpkg.GetSignature(), 0)),
 		Operator:       "",
@@ -344,8 +334,8 @@ func (s *httpServer) handleSensor(binpkg *proto.BinPackage, dev *db.Device, pkg 
 		Accelerometer:  string(accelerometer),
 		OperationTimes: db.NewOperationTimes(),
 	}
-	err := s.db.CreateDeviceRecord(dr)
-	return errors.Wrapf(err, "failed to create senser data: %s", dev.ID)
+	err = s.db.CreateDeviceRecord(dr)
+	return errors.Wrapf(err, "failed to create senser data: %s", id)
 }
 
 func Run(db *db.DB, address string, client *ethclient.Client, ioidAddr, ioidRegistryAddr common.Address) error {
