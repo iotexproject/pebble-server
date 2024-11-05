@@ -86,15 +86,19 @@ func (s *httpServer) query(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to query device")))
 		return
 	}
-	if d == nil {
-		slog.Error("device not exist", "device_id", req.DeviceID)
-		c.JSON(http.StatusBadRequest, newErrResp(errors.New("device not exist")))
-		return
-	}
-	if d.Owner != owner.String() {
+	if d != nil && d.Owner != owner.String() {
 		slog.Error("no permission to access the device", "device_id", req.DeviceID)
 		c.JSON(http.StatusForbidden, newErrResp(errors.New("no permission to access the device")))
 		return
+	}
+	if d == nil {
+		nd, code, err := s.ensureDevice(req.DeviceID, owner)
+		if err != nil {
+			slog.Error("failed to ensure device", "error", err, "device_id", req.DeviceID)
+			c.JSON(code, newErrResp(err))
+			return
+		}
+		d = nd
 	}
 
 	var (
@@ -155,37 +159,9 @@ func (s *httpServer) receive(c *gin.Context) {
 		return
 	}
 	if d == nil {
-		deviceAddr := common.HexToAddress(strings.TrimPrefix(req.DeviceID, "did:io:"))
-		tokenID, err := s.ioidRegistryInstance.DeviceTokenId(nil, deviceAddr)
-		if err != nil {
-			slog.Error("failed to query device token id", "error", err, "device_id", req.DeviceID)
-			c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to query device token id")))
-			return
-		}
-		deviceOwner, err := s.ioidInstance.OwnerOf(nil, tokenID)
-		if err != nil {
-			slog.Error("failed to query device owner", "error", err, "device_id", req.DeviceID, "token_id", tokenID.Uint64())
-			c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to query device owner")))
-			return
-		}
-
-		if !bytes.Equal(deviceOwner.Bytes(), owner.Bytes()) {
-			slog.Error("failed to check device permission in contract", "device_id", req.DeviceID, "device_owner", deviceOwner.String(), "signature_owner", owner.String())
-			c.JSON(http.StatusForbidden, newErrResp(errors.New("no permission to access the device")))
-			return
-		}
-
-		dev := &db.Device{
-			ID:             req.DeviceID,
-			Owner:          owner.String(),
-			Address:        deviceAddr.String(),
-			Status:         db.CONFIRM,
-			Proposer:       owner.String(),
-			OperationTimes: db.NewOperationTimes(),
-		}
-		if err := s.db.UpsertDevice(dev); err != nil {
-			slog.Error("failed to upsert device", "error", err, "device_id", req.DeviceID)
-			c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to upsert device")))
+		if _, code, err := s.ensureDevice(req.DeviceID, owner); err != nil {
+			slog.Error("failed to ensure device", "error", err, "device_id", req.DeviceID)
+			c.JSON(code, newErrResp(err))
 			return
 		}
 	}
@@ -227,6 +203,34 @@ func (s *httpServer) owner(sigStr string, o any) (common.Address, error) {
 		return common.Address{}, errors.Wrap(err, "failed to recover public key from signature")
 	}
 	return crypto.PubkeyToAddress(*sigpk), nil
+}
+
+func (s *httpServer) ensureDevice(deviceID string, owner common.Address) (*db.Device, int, error) {
+	deviceAddr := common.HexToAddress(strings.TrimPrefix(deviceID, "did:io:"))
+	tokenID, err := s.ioidRegistryInstance.DeviceTokenId(nil, deviceAddr)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.Wrap(err, "failed to query device token id")
+	}
+	deviceOwner, err := s.ioidInstance.OwnerOf(nil, tokenID)
+	if err != nil {
+		return nil, http.StatusInternalServerError, errors.Wrap(err, "failed to query device owner")
+	}
+	if !bytes.Equal(deviceOwner.Bytes(), owner.Bytes()) {
+		return nil, http.StatusForbidden, errors.New("no permission to access the device")
+	}
+
+	dev := &db.Device{
+		ID:             deviceID,
+		Owner:          owner.String(),
+		Address:        deviceAddr.String(),
+		Status:         db.CONFIRM,
+		Proposer:       owner.String(),
+		OperationTimes: db.NewOperationTimes(),
+	}
+	if err := s.db.UpsertDevice(dev); err != nil {
+		return nil, http.StatusInternalServerError, errors.Wrap(err, "failed to upsert device")
+	}
+	return dev, http.StatusOK, nil
 }
 
 func (s *httpServer) unmarshalPayload(payload []byte) (*proto.BinPackage, goproto.Message, error) {
