@@ -19,12 +19,14 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/shopspring/decimal"
 	goproto "google.golang.org/protobuf/proto"
 
 	"github.com/iotexproject/pebble-server/contract/ioid"
 	"github.com/iotexproject/pebble-server/contract/ioidregistry"
 	"github.com/iotexproject/pebble-server/db"
+	"github.com/iotexproject/pebble-server/metrics"
 	"github.com/iotexproject/pebble-server/proto"
 )
 
@@ -101,6 +103,13 @@ func (s *httpServer) query(c *gin.Context) {
 		d = nd
 	}
 
+	metrics.TrackDeviceCount(req.DeviceID)
+	metrics.TrackRequestCount("get")
+	now := time.Now()
+	defer func() {
+		metrics.TrackRequestDuration("get", time.Since(now))
+	}()
+
 	var (
 		firmware string
 		uri      string
@@ -165,6 +174,13 @@ func (s *httpServer) receive(c *gin.Context) {
 			return
 		}
 	}
+
+	metrics.TrackDeviceCount(req.DeviceID)
+	metrics.TrackRequestCount("post")
+	now := time.Now()
+	defer func() {
+		metrics.TrackRequestDuration("post", time.Since(now))
+	}()
 
 	payload, err := base64.RawURLEncoding.DecodeString(req.Payload)
 	if err != nil {
@@ -358,6 +374,7 @@ func Run(db *db.DB, address string, client *ethclient.Client, ioidAddr, ioidRegi
 		ioidRegistryInstance: ioidRegistryInstance,
 	}
 
+	s.engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
 	s.engine.GET("/device", s.query)
 	s.engine.POST("/device", s.receive)
 
