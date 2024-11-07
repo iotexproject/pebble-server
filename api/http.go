@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -207,24 +208,30 @@ func (s *httpServer) owner(sigStr string, o any) (common.Address, error) {
 	if err != nil {
 		return common.Address{}, errors.Wrap(err, "failed to marshal request into json format")
 	}
-	h := crypto.Keccak256Hash(reqJson)
-
-	if a, err := s.recoverOwner(sigStr+"1b", h); err == nil {
-		slog.Info("recover owner with 27 success")
-		return a, nil
-	}
-	return s.recoverOwner(sigStr+"1c", h)
-}
-
-func (s *httpServer) recoverOwner(sigStr string, h common.Hash) (common.Address, error) {
 	sig, err := hexutil.Decode(sigStr)
 	if err != nil {
 		return common.Address{}, errors.Wrapf(err, "failed to decode signature from hex format, signature %s", sigStr)
 	}
+	hash := sha256.New()
+	hash.Write(reqJson)
+	h := hash.Sum(nil)
 
-	sigpk, err := crypto.SigToPub(h.Bytes(), sig)
+	rID := []uint8{0, 1, 2, 3, 4, 27, 28}
+	for _, id := range rID {
+		if a, err := s.recover(append(sig, byte(id)), h); err == nil {
+			slog.Info("recover owner success", "r_id", id)
+			return a, nil
+		} else {
+			slog.Error("failed to recover public key from signature", "error", err, "r_id", id)
+		}
+	}
+	return common.Address{}, errors.New("failed to recover public key from signature")
+}
+
+func (s *httpServer) recover(sig, h []byte) (common.Address, error) {
+	sigpk, err := crypto.SigToPub(h, sig)
 	if err != nil {
-		return common.Address{}, errors.Wrapf(err, "failed to recover public key from signature, signature %s", sigStr)
+		return common.Address{}, errors.Wrapf(err, "failed to recover public key from signature")
 	}
 	return crypto.PubkeyToAddress(*sigpk), nil
 }
