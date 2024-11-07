@@ -218,7 +218,9 @@ func (s *httpServer) owner(sigStr string, o any) (common.Address, error) {
 
 	rID := []uint8{0, 1, 2, 3, 4, 27, 28}
 	for _, id := range rID {
-		if a, err := s.recover(append(sig, byte(id)), h); err == nil {
+		ns := append(sig, byte(id))
+		slog.Info("current signature", "signature", hexutil.Encode(ns))
+		if a, err := s.recover(ns, h); err == nil {
 			slog.Info("recover owner success", "r_id", id)
 			return a, nil
 		} else {
