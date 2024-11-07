@@ -89,7 +89,7 @@ func (s *httpServer) query(c *gin.Context) {
 		return
 	}
 	if d != nil && d.Owner != owner.String() {
-		slog.Error("no permission to access the device", "device_id", req.DeviceID)
+		slog.Error("failed to check device permission in db", "device_id", req.DeviceID, "recovered_owner", owner.String(), "owner", d.Owner)
 		c.JSON(http.StatusForbidden, newErrResp(errors.New("no permission to access the device")))
 		return
 	}
@@ -163,7 +163,7 @@ func (s *httpServer) receive(c *gin.Context) {
 		return
 	}
 	if d != nil && d.Owner != owner.String() {
-		slog.Error("failed to check device permission in db", "device_id", req.DeviceID)
+		slog.Error("failed to check device permission in db", "device_id", req.DeviceID, "recovered_owner", owner.String(), "owner", d.Owner)
 		c.JSON(http.StatusForbidden, newErrResp(errors.New("no permission to access the device")))
 		return
 	}
@@ -206,17 +206,25 @@ func (s *httpServer) owner(sigStr string, o any) (common.Address, error) {
 	reqJson, err := json.Marshal(o)
 	if err != nil {
 		return common.Address{}, errors.Wrap(err, "failed to marshal request into json format")
-
 	}
+	h := crypto.Keccak256Hash(reqJson)
+
+	if a, err := s.recoverOwner(sigStr+"27", h); err == nil {
+		slog.Info("recover owner with 27 success")
+		return a, nil
+	}
+	return s.recoverOwner(sigStr+"28", h)
+}
+
+func (s *httpServer) recoverOwner(sigStr string, h common.Hash) (common.Address, error) {
 	sig, err := hexutil.Decode(sigStr)
 	if err != nil {
 		return common.Address{}, errors.Wrapf(err, "failed to decode signature from hex format, signature %s", sigStr)
 	}
 
-	h := crypto.Keccak256Hash(reqJson)
 	sigpk, err := crypto.SigToPub(h.Bytes(), sig)
 	if err != nil {
-		return common.Address{}, errors.Wrap(err, "failed to recover public key from signature")
+		return common.Address{}, errors.Wrapf(err, "failed to recover public key from signature, signature %s", sigStr)
 	}
 	return crypto.PubkeyToAddress(*sigpk), nil
 }
@@ -232,6 +240,7 @@ func (s *httpServer) ensureDevice(deviceID string, owner common.Address) (*db.De
 		return nil, http.StatusInternalServerError, errors.Wrap(err, "failed to query device owner")
 	}
 	if !bytes.Equal(deviceOwner.Bytes(), owner.Bytes()) {
+		slog.Error("failed to check device permission in contract", "device_id", deviceID, "recovered_owner", owner.String(), "owner", deviceOwner.String())
 		return nil, http.StatusForbidden, errors.New("no permission to access the device")
 	}
 
