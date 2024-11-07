@@ -209,11 +209,11 @@ func (s *httpServer) owner(sigStr string, o any) (common.Address, error) {
 	}
 	h := crypto.Keccak256Hash(reqJson)
 
-	if a, err := s.recoverOwner(sigStr+"27", h); err == nil {
+	if a, err := s.recoverOwner(sigStr+"1b", h); err == nil {
 		slog.Info("recover owner with 27 success")
 		return a, nil
 	}
-	return s.recoverOwner(sigStr+"28", h)
+	return s.recoverOwner(sigStr+"1c", h)
 }
 
 func (s *httpServer) recoverOwner(sigStr string, h common.Hash) (common.Address, error) {
