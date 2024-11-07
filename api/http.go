@@ -76,7 +76,7 @@ func (s *httpServer) query(c *gin.Context) {
 	sigStr := req.Signature
 	req.Signature = ""
 
-	owner, err := s.owner(sigStr, req)
+	owners, err := s.owner(sigStr, req)
 	if err != nil {
 		slog.Error("failed to recover owner from signature", "error", err)
 		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to recover owner from signature")))
@@ -89,13 +89,13 @@ func (s *httpServer) query(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to query device")))
 		return
 	}
-	if d != nil && d.Owner != owner.String() {
-		slog.Error("failed to check device permission in db", "device_id", req.DeviceID, "recovered_owner", owner.String(), "owner", d.Owner)
+	if d != nil && !isOwner(common.HexToAddress(d.Owner), owners) {
+		slog.Error("failed to check device permission in db", "device_id", req.DeviceID, "owner", d.Owner)
 		c.JSON(http.StatusForbidden, newErrResp(errors.New("no permission to access the device")))
 		return
 	}
 	if d == nil {
-		nd, code, err := s.ensureDevice(req.DeviceID, owner)
+		nd, code, err := s.ensureDevice(req.DeviceID, owners)
 		if err != nil {
 			slog.Error("failed to ensure device", "error", err, "device_id", req.DeviceID)
 			c.JSON(code, newErrResp(err))
@@ -150,7 +150,7 @@ func (s *httpServer) receive(c *gin.Context) {
 	sigStr := req.Signature
 	req.Signature = ""
 
-	owner, err := s.owner(sigStr, req)
+	owners, err := s.owner(sigStr, req)
 	if err != nil {
 		slog.Error("failed to recover owner from signature", "error", err)
 		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to recover owner from signature")))
@@ -163,13 +163,13 @@ func (s *httpServer) receive(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to query device")))
 		return
 	}
-	if d != nil && d.Owner != owner.String() {
-		slog.Error("failed to check device permission in db", "device_id", req.DeviceID, "recovered_owner", owner.String(), "owner", d.Owner)
+	if d != nil && !isOwner(common.HexToAddress(d.Owner), owners) {
+		slog.Error("failed to check device permission in db", "device_id", req.DeviceID, "owner", d.Owner)
 		c.JSON(http.StatusForbidden, newErrResp(errors.New("no permission to access the device")))
 		return
 	}
 	if d == nil {
-		if _, code, err := s.ensureDevice(req.DeviceID, owner); err != nil {
+		if _, code, err := s.ensureDevice(req.DeviceID, owners); err != nil {
 			slog.Error("failed to ensure device", "error", err, "device_id", req.DeviceID)
 			c.JSON(code, newErrResp(err))
 			return
@@ -203,31 +203,33 @@ func (s *httpServer) receive(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
-func (s *httpServer) owner(sigStr string, o any) (common.Address, error) {
+func (s *httpServer) owner(sigStr string, o any) ([]common.Address, error) {
 	reqJson, err := json.Marshal(o)
 	if err != nil {
-		return common.Address{}, errors.Wrap(err, "failed to marshal request into json format")
+		return nil, errors.Wrap(err, "failed to marshal request into json format")
 	}
 	sig, err := hexutil.Decode(sigStr)
 	if err != nil {
-		return common.Address{}, errors.Wrapf(err, "failed to decode signature from hex format, signature %s", sigStr)
+		return nil, errors.Wrapf(err, "failed to decode signature from hex format, signature %s", sigStr)
 	}
 	hash := sha256.New()
 	hash.Write(reqJson)
 	h := hash.Sum(nil)
 
-	rID := []uint8{0, 1, 2, 3, 4, 27, 28}
+	res := []common.Address{}
+	rID := []uint8{0, 1}
 	for _, id := range rID {
 		ns := append(sig, byte(id))
-		slog.Info("current signature", "signature", hexutil.Encode(ns))
-		if a, err := s.recover(ns, h); err == nil {
-			slog.Info("recover owner success", "r_id", id)
-			return a, nil
+		if a, err := s.recover(ns, h); err != nil {
+			slog.Info("failed to recover address from signature", "error", err, "recover_id", id, "signature", sigStr)
 		} else {
-			slog.Error("failed to recover public key from signature", "error", err, "r_id", id)
+			res = append(res, a)
 		}
 	}
-	return common.Address{}, errors.New("failed to recover public key from signature")
+	if len(res) == 0 {
+		return nil, errors.New("failed to recover public key from signature")
+	}
+	return res, nil
 }
 
 func (s *httpServer) recover(sig, h []byte) (common.Address, error) {
@@ -235,10 +237,20 @@ func (s *httpServer) recover(sig, h []byte) (common.Address, error) {
 	if err != nil {
 		return common.Address{}, errors.Wrapf(err, "failed to recover public key from signature")
 	}
+	slog.Info("public key", "data", hexutil.Encode(crypto.FromECDSAPub(sigpk)))
 	return crypto.PubkeyToAddress(*sigpk), nil
 }
 
-func (s *httpServer) ensureDevice(deviceID string, owner common.Address) (*db.Device, int, error) {
+func isOwner(o common.Address, os []common.Address) bool {
+	for _, i := range os {
+		if bytes.Equal(i.Bytes(), o.Bytes()) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *httpServer) ensureDevice(deviceID string, owners []common.Address) (*db.Device, int, error) {
 	deviceAddr := common.HexToAddress(strings.TrimPrefix(deviceID, "did:io:"))
 	tokenID, err := s.ioidRegistryInstance.DeviceTokenId(nil, deviceAddr)
 	if err != nil {
@@ -248,17 +260,17 @@ func (s *httpServer) ensureDevice(deviceID string, owner common.Address) (*db.De
 	if err != nil {
 		return nil, http.StatusInternalServerError, errors.Wrap(err, "failed to query device owner")
 	}
-	if !bytes.Equal(deviceOwner.Bytes(), owner.Bytes()) {
-		slog.Error("failed to check device permission in contract", "device_id", deviceID, "recovered_owner", owner.String(), "owner", deviceOwner.String())
+	if !isOwner(deviceOwner, owners) {
+		slog.Error("failed to check device permission in contract", "device_id", deviceID, "owner", deviceOwner.String())
 		return nil, http.StatusForbidden, errors.New("no permission to access the device")
 	}
 
 	dev := &db.Device{
 		ID:             deviceID,
-		Owner:          owner.String(),
+		Owner:          deviceOwner.String(),
 		Address:        deviceAddr.String(),
 		Status:         db.CONFIRM,
-		Proposer:       owner.String(),
+		Proposer:       deviceOwner.String(),
 		OperationTimes: db.NewOperationTimes(),
 	}
 	if err := s.db.UpsertDevice(dev); err != nil {
