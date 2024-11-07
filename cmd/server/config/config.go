@@ -36,7 +36,7 @@ type Config struct {
 
 var (
 	defaultTestnetConfig = &Config{
-		LogLevel:                     slog.LevelDebug,
+		LogLevel:                     slog.LevelInfo,
 		ServiceEndpoint:              ":9000",
 		DatabaseDSN:                  "postgres://postgres:mysecretpassword@postgres:5432/w3bstream?sslmode=disable",
 		ChainEndpoint:                "https://babel-api.testnet.iotex.io",
