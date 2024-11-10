@@ -58,6 +58,9 @@ type receiveReq struct {
 	Signature string `json:"signature,omitempty"        binding:"required"`
 }
 
+// Due to the limitations of the Pebble device framework, it can only handle a limited set of HTTP codes.
+// Therefore, we’ll use only two codes: 200 for success and 400 for failure.
+// Specific error details will be provided in the returned error message.
 type httpServer struct {
 	engine               *gin.Engine
 	db                   *db.DB
@@ -92,14 +95,14 @@ func (s *httpServer) query(c *gin.Context) {
 	d, err := s.db.Device(req.DeviceID)
 	if err != nil {
 		slog.Error("failed to query device", "error", err, "device_id", req.DeviceID)
-		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to query device")))
+		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to query device")))
 		return
 	}
 	if d == nil {
-		nd, code, err := s.ensureDevice(deviceAddr, req.DeviceID)
+		nd, err := s.ensureDevice(deviceAddr, req.DeviceID)
 		if err != nil {
 			slog.Error("failed to ensure device", "error", err, "device_id", req.DeviceID)
-			c.JSON(code, newErrResp(err))
+			c.JSON(http.StatusBadRequest, newErrResp(err))
 			return
 		}
 		d = nd
@@ -121,7 +124,7 @@ func (s *httpServer) query(c *gin.Context) {
 		app, err := s.db.App(parts[0])
 		if err != nil {
 			slog.Error("failed to query app", "error", err, "app_id", parts[0])
-			c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to query app")))
+			c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to query app")))
 			return
 		}
 		if app != nil {
@@ -167,13 +170,13 @@ func (s *httpServer) receive(c *gin.Context) {
 	d, err := s.db.Device(req.DeviceID)
 	if err != nil {
 		slog.Error("failed to query device", "error", err, "device_id", req.DeviceID)
-		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to query device")))
+		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to query device")))
 		return
 	}
 	if d == nil {
-		if _, code, err := s.ensureDevice(deviceAddr, req.DeviceID); err != nil {
+		if _, err := s.ensureDevice(deviceAddr, req.DeviceID); err != nil {
 			slog.Error("failed to ensure device", "error", err, "device_id", req.DeviceID)
-			c.JSON(code, newErrResp(err))
+			c.JSON(http.StatusBadRequest, newErrResp(err))
 			return
 		}
 	}
@@ -199,7 +202,7 @@ func (s *httpServer) receive(c *gin.Context) {
 	}
 	if err := s.handle(req.DeviceID, pkg, data); err != nil {
 		slog.Error("failed to handle payload data", "error", err)
-		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to handle payload data")))
+		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to handle payload data")))
 		return
 	}
 	c.Status(http.StatusOK)
@@ -246,14 +249,14 @@ func (s *httpServer) recover(sig, h []byte) (common.Address, error) {
 	return crypto.PubkeyToAddress(*sigpk), nil
 }
 
-func (s *httpServer) ensureDevice(deviceAddr common.Address, deviceID string) (*db.Device, int, error) {
+func (s *httpServer) ensureDevice(deviceAddr common.Address, deviceID string) (*db.Device, error) {
 	tokenID, err := s.ioidRegistryInstance.DeviceTokenId(nil, deviceAddr)
 	if err != nil {
-		return nil, http.StatusInternalServerError, errors.Wrap(err, "failed to query device token id")
+		return nil, errors.Wrap(err, "failed to query device token id")
 	}
 	deviceOwner, err := s.ioidInstance.OwnerOf(nil, tokenID)
 	if err != nil {
-		return nil, http.StatusInternalServerError, errors.Wrap(err, "failed to query device owner")
+		return nil, errors.Wrap(err, "failed to query device owner")
 	}
 
 	dev := &db.Device{
@@ -265,9 +268,9 @@ func (s *httpServer) ensureDevice(deviceAddr common.Address, deviceID string) (*
 		OperationTimes: db.NewOperationTimes(),
 	}
 	if err := s.db.UpsertDevice(dev); err != nil {
-		return nil, http.StatusInternalServerError, errors.Wrap(err, "failed to upsert device")
+		return nil, errors.Wrap(err, "failed to upsert device")
 	}
-	return dev, http.StatusOK, nil
+	return dev, nil
 }
 
 func (s *httpServer) unmarshalPayload(payload []byte) (*proto.BinPackage, goproto.Message, error) {
