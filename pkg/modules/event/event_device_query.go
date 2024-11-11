@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/machinefi/sprout-pebble-sequencer/metrics"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 )
@@ -47,6 +48,9 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 	if dev.Status == models.CREATED {
 		return errors.Errorf("device %s is not propsaled", dev.ID)
 	}
+
+	metrics.TrackDeviceCount(e.Imei)
+	metrics.TrackRequestCount("query")
 
 	var (
 		firmware string

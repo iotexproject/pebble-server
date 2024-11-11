@@ -16,6 +16,7 @@ import (
 	"github.com/xoctopus/x/misc/must"
 	"google.golang.org/protobuf/proto"
 
+	"github.com/machinefi/sprout-pebble-sequencer/metrics"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/pebblepb"
@@ -112,6 +113,9 @@ func (e *DeviceData) Handle(ctx context.Context) (err error) {
 	if !e.Validate() {
 		return WrapValidateError(e)
 	}
+
+	metrics.TrackDeviceCount(e.Imei)
+	metrics.TrackRequestCount("write")
 
 	switch pkg := e.pkg.(type) {
 	case *pebblepb.SensorConfig:
