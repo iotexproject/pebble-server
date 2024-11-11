@@ -37,6 +37,18 @@ var (
 		ProjectContractAddr:      "0xf07336E1c77319B4e740b666eb0C2B19D11fc14F",
 		env:                      "TESTNET",
 	}
+	defaultMainnetConfig = &Config{
+		LogLevel:                 slog.LevelInfo,
+		ServiceEndpoint:          ":9000",
+		DatabaseDSN:              "postgres://postgres:mysecretpassword@postgres:5432/w3bstream?sslmode=disable",
+		ChainEndpoint:            "https://babel-api.mainnet.iotex.io",
+		BeginningBlockNumber:     28685000,
+		IoIDProjectID:            6,
+		IoIDRegistryContractAddr: "0x04e4655Cf258EC802D17c23ec6112Ef7d97Fa2aF",
+		IoIDContractAddr:         "0x1FCB980eD0287777ab05ADc93012332e11300e54",
+		ProjectContractAddr:      "0xA596800891e6a95Bf737404411ef529c1F377b4e",
+		env:                      "MAINNET",
+	}
 )
 
 func (c *Config) init() error {
@@ -54,6 +66,8 @@ func Get() (*Config, error) {
 	switch env {
 	case "TESTNET":
 		conf = defaultTestnetConfig
+	case "MAINNET":
+		conf = defaultMainnetConfig
 	default:
 		env = "TESTNET"
 		conf = defaultTestnetConfig
