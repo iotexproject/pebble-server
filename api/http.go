@@ -6,7 +6,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -358,11 +357,10 @@ func (s *httpServer) handleSensor(id string, pkg *proto.BinPackage, data *proto.
 		errors.Wrap(err, "failed to marshal accelerometer data")
 	}
 
-	now := time.Now()
 	dr := &db.DeviceRecord{
-		ID:             id + "-" + fmt.Sprintf("%d", now.Unix()),
+		ID:             id + "-" + data.GetRandom(),
 		Imei:           id,
-		Timestamp:      now.Unix(),
+		Timestamp:      time.Now().Unix(),
 		Signature:      hex.EncodeToString(append(pkg.GetSignature(), 0)),
 		Operator:       "",
 		Snr:            strconv.FormatFloat(snr, 'f', 1, 64),
