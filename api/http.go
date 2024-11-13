@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -38,17 +39,23 @@ func newErrResp(err error) *errResp {
 	return &errResp{Error: err.Error()}
 }
 
+type pubkeyResp struct {
+	Pubkey string `json:"publicKey"`
+}
+
 type queryReq struct {
 	DeviceID  string `json:"deviceID"                   binding:"required"`
 	Signature string `json:"signature,omitempty"        binding:"required"`
 }
 
 type queryResp struct {
-	Status   int32  `json:"status"`
-	Owner    string `json:"owner"`
-	Firmware string `json:"firmware,omitempty"`
-	URI      string `json:"uri,omitempty"`
-	Version  string `json:"version,omitempty"`
+	Timestamp int32  `json:"timestamp"`
+	Status    int32  `json:"status"`
+	Owner     string `json:"owner"`
+	Firmware  string `json:"firmware,omitempty"`
+	URI       string `json:"uri,omitempty"`
+	Version   string `json:"version,omitempty"`
+	Signature string `json:"signature,omitempty"`
 }
 
 type receiveReq struct {
@@ -63,8 +70,15 @@ type receiveReq struct {
 type httpServer struct {
 	engine               *gin.Engine
 	db                   *db.DB
+	prv                  *ecdsa.PrivateKey
 	ioidInstance         *ioid.Ioid
 	ioidRegistryInstance *ioidregistry.Ioidregistry
+}
+
+func (s *httpServer) pubkey(c *gin.Context) {
+	c.JSON(http.StatusOK, &pubkeyResp{
+		Pubkey: hexutil.Encode(crypto.FromECDSAPub(&s.prv.PublicKey)),
+	})
 }
 
 func (s *httpServer) query(c *gin.Context) {
@@ -133,13 +147,32 @@ func (s *httpServer) query(c *gin.Context) {
 		}
 	}
 
-	c.JSON(http.StatusOK, &queryResp{
-		Status:   d.Status,
-		Owner:    d.Owner,
-		Firmware: firmware,
-		URI:      uri,
-		Version:  version,
-	})
+	resp := &queryResp{
+		Timestamp: int32(time.Now().Unix()),
+		Status:    d.Status,
+		Owner:     d.Owner,
+		Firmware:  firmware,
+		URI:       uri,
+		Version:   version,
+	}
+	respJ, err := json.Marshal(resp)
+	if err != nil {
+		slog.Error("failed to marshal response", "error", err)
+		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to marshal response")))
+		return
+	}
+	hash := sha256.New()
+	hash.Write(respJ)
+	h := hash.Sum(nil)
+	sig, err := crypto.Sign(h, s.prv)
+	if err != nil {
+		slog.Error("failed to sign response", "error", err)
+		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to sign response")))
+		return
+	}
+	resp.Signature = hexutil.Encode(sig)
+
+	c.JSON(http.StatusOK, resp)
 }
 
 func (s *httpServer) receive(c *gin.Context) {
@@ -381,7 +414,7 @@ func (s *httpServer) handleSensor(id string, pkg *proto.BinPackage, data *proto.
 	return errors.Wrapf(err, "failed to create senser data: %s", id)
 }
 
-func Run(db *db.DB, address string, client *ethclient.Client, ioidAddr, ioidRegistryAddr common.Address) error {
+func Run(db *db.DB, address string, client *ethclient.Client, prv *ecdsa.PrivateKey, ioidAddr, ioidRegistryAddr common.Address) error {
 	ioidInstance, err := ioid.NewIoid(ioidAddr, client)
 	if err != nil {
 		return errors.Wrap(err, "failed to new ioid contract instance")
@@ -393,11 +426,13 @@ func Run(db *db.DB, address string, client *ethclient.Client, ioidAddr, ioidRegi
 	s := &httpServer{
 		engine:               gin.Default(),
 		db:                   db,
+		prv:                  prv,
 		ioidInstance:         ioidInstance,
 		ioidRegistryInstance: ioidRegistryInstance,
 	}
 
 	s.engine.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	s.engine.GET("/public_key", s.pubkey)
 	s.engine.GET("/device", s.query)
 	s.engine.POST("/device", s.receive)
 

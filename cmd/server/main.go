@@ -8,6 +8,7 @@ import (
 	"syscall"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
 
@@ -24,6 +25,11 @@ func main() {
 	}
 	cfg.Print()
 	slog.Info("pebble server config loaded")
+
+	prv, err := crypto.HexToECDSA(cfg.PrvKey)
+	if err != nil {
+		log.Fatal(errors.Wrap(err, "failed to parse private key"))
+	}
 
 	db, err := db.New(cfg.DatabaseDSN, cfg.IoIDProjectID)
 	if err != nil {
@@ -49,7 +55,7 @@ func main() {
 	}
 
 	go func() {
-		if err := api.Run(db, cfg.ServiceEndpoint, client, common.HexToAddress(cfg.IoIDContractAddr), common.HexToAddress(cfg.IoIDRegistryContractAddr)); err != nil {
+		if err := api.Run(db, cfg.ServiceEndpoint, client, prv, common.HexToAddress(cfg.IoIDContractAddr), common.HexToAddress(cfg.IoIDRegistryContractAddr)); err != nil {
 			log.Fatal(err)
 		}
 	}()
