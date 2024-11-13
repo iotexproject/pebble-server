@@ -14,6 +14,7 @@ import (
 type Config struct {
 	LogLevel                 slog.Level `env:"LOG_LEVEL,optional"`
 	ServiceEndpoint          string     `env:"HTTP_SERVICE_ENDPOINT"`
+	PrvKey                   string     `env:"PRIVATE_KEY,optional"`
 	DatabaseDSN              string     `env:"DATABASE_DSN"`
 	ChainEndpoint            string     `env:"CHAIN_ENDPOINT,optional"`
 	BeginningBlockNumber     uint64     `env:"BEGINNING_BLOCK_NUMBER,optional"`
