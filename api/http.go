@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"math/big"
 	"net/http"
@@ -391,9 +392,9 @@ func (s *httpServer) handleSensor(id string, pkg *proto.BinPackage, data *proto.
 	}
 
 	dr := &db.DeviceRecord{
-		ID:             id + "-" + data.GetRandom(),
+		ID:             id + "-" + fmt.Sprintf("%d", pkg.GetTimestamp()),
 		Imei:           id,
-		Timestamp:      time.Now().Unix(),
+		Timestamp:      int64(pkg.GetTimestamp()),
 		Signature:      hex.EncodeToString(append(pkg.GetSignature(), 0)),
 		Operator:       "",
 		Snr:            strconv.FormatFloat(snr, 'f', 1, 64),
