@@ -21,7 +21,7 @@ import (
 type (
 	ScannedBlockNumber       func() (uint64, error)
 	UpsertScannedBlockNumber func(uint64) error
-	UpsertProjectMetadata    func(projectID uint64, name string, key [32]byte, value []byte) error
+	UpsertProjectMetadata    func(projectID uint64, key [32]byte, value []byte) error
 )
 
 type Handler struct {
@@ -69,7 +69,7 @@ func (c *contract) processLogs(logs []types.Log) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to parse project add metadata event")
 			}
-			if err := c.h.UpsertProjectMetadata(e.ProjectId.Uint64(), e.Name, e.Key, e.Value); err != nil {
+			if err := c.h.UpsertProjectMetadata(e.ProjectId.Uint64(), e.Key, e.Value); err != nil {
 				return err
 			}
 		}
