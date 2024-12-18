@@ -15,39 +15,46 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
 
+	"github.com/iotexproject/pebble-server/contract/ioid"
 	"github.com/iotexproject/pebble-server/contract/project"
+	"github.com/iotexproject/pebble-server/db"
 )
 
 type (
 	ScannedBlockNumber       func() (uint64, error)
 	UpsertScannedBlockNumber func(uint64) error
 	UpsertProjectMetadata    func(projectID uint64, key [32]byte, value []byte) error
+	UpsertDevice             func(t *db.Device) error
 )
 
 type Handler struct {
 	ScannedBlockNumber
 	UpsertScannedBlockNumber
 	UpsertProjectMetadata
+	UpsertDevice
 }
 
 type ContractAddr struct {
-	IOID         common.Address
-	IOIDRegistry common.Address
-	Project      common.Address
+	IoID    common.Address
+	Project common.Address
 }
 
 type contract struct {
 	h                    *Handler
+	addr                 *ContractAddr
 	projectAddr          common.Address
 	beginningBlockNumber uint64
 	listStepSize         uint64
+	ioIDProjectID        uint64
 	watchInterval        time.Duration
 	client               *ethclient.Client
 	projectInstance      *project.Project
+	ioidInstance         *ioid.Ioid
 }
 
 var (
 	projectAddMetadataTopic = crypto.Keccak256Hash([]byte("AddMetadata(uint256,string,bytes32,bytes)"))
+	createIoIDTopic         = crypto.Keccak256Hash([]byte("CreateIoID(address,uint256,address,string)"))
 )
 
 var allTopic = []common.Hash{
@@ -69,7 +76,34 @@ func (c *contract) processLogs(logs []types.Log) error {
 			if err != nil {
 				return errors.Wrap(err, "failed to parse project add metadata event")
 			}
+			if e.ProjectId.Uint64() != c.ioIDProjectID {
+				continue
+			}
 			if err := c.h.UpsertProjectMetadata(e.ProjectId.Uint64(), e.Key, e.Value); err != nil {
+				return err
+			}
+		case createIoIDTopic:
+			e, err := c.ioidInstance.ParseCreateIoID(l)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse create ioid event")
+			}
+			address := common.HexToAddress(strings.TrimPrefix(e.Did, "did:io:"))
+			pid, err := c.ioidInstance.DeviceProject(nil, address)
+			if err != nil {
+				return errors.Wrapf(err, "failed to query device project, device_id %s", e.Did)
+			}
+			if pid.Uint64() != c.ioIDProjectID {
+				continue
+			}
+
+			if err := c.h.UpsertDevice(&db.Device{
+				ID:             e.Did,
+				Owner:          e.Owner.String(),
+				Address:        address.String(),
+				Status:         db.CONFIRM,
+				Proposer:       e.Owner.String(),
+				OperationTimes: db.NewOperationTimes(),
+			}); err != nil {
 				return err
 			}
 		}
@@ -159,20 +193,26 @@ func (c *contract) watch(listedBlockNumber uint64) {
 	}()
 }
 
-func Run(h *Handler, projectAddr common.Address, beginningBlockNumber uint64, client *ethclient.Client) error {
-	projectInstance, err := project.NewProject(projectAddr, client)
+func Run(h *Handler, addr *ContractAddr, beginningBlockNumber, ioIDProjectID uint64, client *ethclient.Client) error {
+	projectInstance, err := project.NewProject(addr.Project, client)
 	if err != nil {
 		return errors.Wrap(err, "failed to new project contract instance")
+	}
+	ioidInstance, err := ioid.NewIoid(addr.IoID, client)
+	if err != nil {
+		return errors.Wrap(err, "failed to new ioid contract instance")
 	}
 
 	c := &contract{
 		h:                    h,
-		projectAddr:          projectAddr,
+		addr:                 addr,
 		beginningBlockNumber: beginningBlockNumber,
+		ioIDProjectID:        ioIDProjectID,
 		listStepSize:         500,
 		watchInterval:        1 * time.Second,
 		client:               client,
 		projectInstance:      projectInstance,
+		ioidInstance:         ioidInstance,
 	}
 
 	listedBlockNumber, err := c.list()

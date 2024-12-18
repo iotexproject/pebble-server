@@ -22,6 +22,8 @@ type Config struct {
 	IoIDRegistryContractAddr string     `env:"IOID_REGISTRY_CONTRACT_ADDRESS,optional"`
 	IoIDContractAddr         string     `env:"IOID_CONTRACT_ADDRESS,optional"`
 	ProjectContractAddr      string     `env:"PROJECT_CONTRACT_ADDRESS,optional"`
+	W3bstreamProjectID       string     `env:"W3BSTREAM_PROJECT_ID,optional"`
+	W3bstreamServiceEndpoint string     `env:"W3BSTREAM_SERVICE_ENDPOINT,optional"`
 	env                      string     `env:"-"`
 }
 

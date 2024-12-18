@@ -8,11 +8,10 @@ import (
 )
 
 type DB struct {
-	ioidProjectID uint64
-	db            *gorm.DB
+	db *gorm.DB
 }
 
-func New(dsn string, ioidProjectID uint64) (*DB, error) {
+func New(dsn string) (*DB, error) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
@@ -33,5 +32,5 @@ func New(dsn string, ioidProjectID uint64) (*DB, error) {
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to migrate model")
 	}
-	return &DB{ioidProjectID, db}, nil
+	return &DB{db}, nil
 }

@@ -32,10 +32,6 @@ type firmwareData struct {
 var pebbleFirmwareKey = crypto.Keccak256Hash([]byte("pebble_firmware"))
 
 func (d *DB) UpsertApp(projectID uint64, key [32]byte, value []byte) error {
-	if d.ioidProjectID != projectID {
-		slog.Debug("not ioid project metadata", "project_id", projectID, "ioid_project_id", d.ioidProjectID)
-		return nil
-	}
 	if !bytes.Equal(key[:], pebbleFirmwareKey.Bytes()) {
 		slog.Error("failed to match pebble firmware key")
 		return nil
