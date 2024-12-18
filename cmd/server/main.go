@@ -31,7 +31,7 @@ func main() {
 		log.Fatal(errors.Wrap(err, "failed to parse private key"))
 	}
 
-	db, err := db.New(cfg.DatabaseDSN, cfg.IoIDProjectID)
+	db, err := db.New(cfg.DatabaseDSN)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "failed to new db"))
 	}
@@ -47,15 +47,19 @@ func main() {
 			UpsertScannedBlockNumber: db.UpsertScannedBlockNumber,
 			UpsertProjectMetadata:    db.UpsertApp,
 		},
-		common.HexToAddress(cfg.ProjectContractAddr),
+		&monitor.ContractAddr{
+			Project: common.HexToAddress(cfg.ProjectContractAddr),
+			IoID:    common.HexToAddress(cfg.IoIDContractAddr),
+		},
 		cfg.BeginningBlockNumber,
+		cfg.IoIDProjectID,
 		client,
 	); err != nil {
 		log.Fatal(errors.Wrap(err, "failed to run contract monitor"))
 	}
 
 	go func() {
-		if err := api.Run(db, cfg.ServiceEndpoint, client, prv, common.HexToAddress(cfg.IoIDContractAddr), common.HexToAddress(cfg.IoIDRegistryContractAddr)); err != nil {
+		if err := api.Run(db, cfg.ServiceEndpoint, client, prv); err != nil {
 			log.Fatal(err)
 		}
 	}()
