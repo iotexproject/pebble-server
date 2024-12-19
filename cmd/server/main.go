@@ -46,6 +46,7 @@ func main() {
 			ScannedBlockNumber:       db.ScannedBlockNumber,
 			UpsertScannedBlockNumber: db.UpsertScannedBlockNumber,
 			UpsertProjectMetadata:    db.UpsertApp,
+			UpsertDevice:             db.UpsertDevice,
 		},
 		&monitor.ContractAddr{
 			Project: common.HexToAddress(cfg.ProjectContractAddr),
