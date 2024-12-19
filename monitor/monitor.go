@@ -42,7 +42,6 @@ type ContractAddr struct {
 type contract struct {
 	h                    *Handler
 	addr                 *ContractAddr
-	projectAddr          common.Address
 	beginningBlockNumber uint64
 	listStepSize         uint64
 	ioIDProjectID        uint64
@@ -59,6 +58,7 @@ var (
 
 var allTopic = []common.Hash{
 	projectAddMetadataTopic,
+	createIoIDTopic,
 }
 
 func (c *contract) processLogs(logs []types.Log) error {
@@ -120,7 +120,7 @@ func (c *contract) list() (uint64, error) {
 	head = max(head, h)
 
 	query := ethereum.FilterQuery{
-		Addresses: []common.Address{c.projectAddr},
+		Addresses: []common.Address{c.addr.Project, c.addr.IoID},
 		Topics:    [][]common.Hash{allTopic},
 	}
 	ctx := context.Background()
@@ -161,7 +161,7 @@ func (c *contract) list() (uint64, error) {
 func (c *contract) watch(listedBlockNumber uint64) {
 	scannedBlockNumber := listedBlockNumber
 	query := ethereum.FilterQuery{
-		Addresses: []common.Address{c.projectAddr},
+		Addresses: []common.Address{c.addr.Project, c.addr.IoID},
 		Topics:    [][]common.Hash{allTopic},
 	}
 	ticker := time.NewTicker(c.watchInterval)
