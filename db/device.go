@@ -1,6 +1,8 @@
 package db
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -40,6 +42,7 @@ type Device struct {
 func (*Device) TableName() string { return "device" }
 
 func (d *DB) Device(id string) (*Device, error) {
+	id = strings.ToLower(id)
 	t := Device{}
 	if err := d.db.Where("id = ?", id).First(&t).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {

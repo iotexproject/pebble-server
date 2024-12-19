@@ -275,7 +275,6 @@ func (s *httpServer) receiveV2(c *gin.Context) {
 	var device *db.Device
 	var approved bool
 	for _, r := range recovered {
-		slog.Info("recovered address", "project_id", pid.String(), "address", r.addr.String())
 		d, err := s.db.Device("did:io:" + r.addr.Hex())
 		if err != nil {
 			slog.Error("failed to query device", "error", err)
@@ -326,7 +325,6 @@ func recover(req wsapi.CreateTaskReq, cfg *project.Config, sig []byte) (res []*s
 	addr common.Address
 	sig  []byte
 }, sigAlg, hashAlg string, err error) {
-	slog.Info("request json info", "signature", req.Signature)
 
 	req.Signature = ""
 	reqJson, err := json.Marshal(req)
@@ -339,16 +337,13 @@ func recover(req wsapi.CreateTaskReq, cfg *project.Config, sig []byte) (res []*s
 	default:
 		hashAlg = "sha256"
 		h1 := sha256.Sum256(reqJson)
-		slog.Info("request json info", "data", string(reqJson), "hash", hexutil.Encode(h1[:]))
 		d := make([]byte, 0, len(h1))
 		d = append(d, h1[:]...)
-		slog.Info("request json info", "hash_d", hexutil.Encode(d))
 
 		for _, k := range cfg.SignedKeys {
 			value := gjson.GetBytes(req.Payload, k.Name)
 			switch k.Type {
 			case "uint64":
-				slog.Info("request json info", "json value uint64", value.Uint())
 				buf := new(bytes.Buffer)
 				if err := binary.Write(buf, binary.LittleEndian, value.Uint()); err != nil {
 					return nil, "", "", errors.New("failed to convert uint64 to bytes array")
@@ -356,9 +351,7 @@ func recover(req wsapi.CreateTaskReq, cfg *project.Config, sig []byte) (res []*s
 				d = append(d, buf.Bytes()...)
 			}
 		}
-		slog.Info("request json info", "hash_d_final", hexutil.Encode(d))
 		hash = sha256.Sum256(d)
-		slog.Info("request json info", "hash_final", hexutil.Encode(hash[:]))
 	}
 
 	switch cfg.SignatureAlgorithm {
