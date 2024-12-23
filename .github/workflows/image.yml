@@ -10,7 +10,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: machinefi/pebble-sequencer
+  IMAGE_NAME: iotexproject/pebble-server
 
 jobs:
   build_image:
