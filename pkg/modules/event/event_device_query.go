@@ -2,6 +2,7 @@ package event
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -60,6 +61,16 @@ func (e *DeviceQuery) Handle(ctx context.Context) (err error) {
 			firmware = app.ID
 			uri = app.Uri
 			version = app.Version
+
+			if vs := strings.Split(parts[1], "."); len(vs) == 3 {
+				v, err := strconv.Atoi(vs[2])
+				if err == nil {
+					if v < 15 {
+						version = "1.0.15"
+						uri = "https://pebble-ota.s3.ap-east-1.amazonaws.com/app_riverrock_update_ota_1_0_15.bin"
+					}
+				}
+			}
 		}
 	}
 
