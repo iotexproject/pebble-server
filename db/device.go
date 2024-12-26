@@ -59,7 +59,7 @@ func (d *DB) Device(id string) (*Device, error) {
 func (d *DB) UpsertDevice(t *Device) error {
 	err := d.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"nft_id", "owner", "address", "status", "proposer", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"name", "nft_id", "owner", "address", "status", "proposer", "updated_at"}),
 	}).Create(t).Error
 	return errors.Wrap(err, "failed to upsert device")
 }

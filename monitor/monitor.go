@@ -103,6 +103,7 @@ func (c *contract) processLogs(logs []types.Log) error {
 
 			if err := c.h.UpsertDevice(&db.Device{
 				ID:             e.Did,
+				Name:           e.Did,
 				NFTID:          e.Id.String(),
 				Owner:          e.Owner.String(),
 				Address:        address.String(),
