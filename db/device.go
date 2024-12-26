@@ -1,8 +1,10 @@
 package db
 
 import (
+	"math/big"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -16,6 +18,7 @@ const (
 
 type Device struct {
 	ID                     string `gorm:"primary_key"`
+	NFTID                  string `gorm:"uniqueIndex:device_nft_id,not null"`
 	Name                   string `gorm:"not null;default:''"`
 	Owner                  string `gorm:"not null;default:''"`
 	Address                string `gorm:"not null;default:''"`
@@ -56,9 +59,15 @@ func (d *DB) Device(id string) (*Device, error) {
 func (d *DB) UpsertDevice(t *Device) error {
 	err := d.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"owner", "address", "status", "proposer", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"nftid", "owner", "address", "status", "proposer", "updated_at"}),
 	}).Create(t).Error
 	return errors.Wrap(err, "failed to upsert device")
+}
+
+func (d *DB) UpdateOwner(nftid *big.Int, owner common.Address) error {
+	values := map[string]any{"owner": owner.String()}
+	err := d.db.Model(&Device{}).Where("nftid = ?", nftid.String()).Updates(values).Error
+	return errors.Wrap(err, "failed to update device owner")
 }
 
 func (d *DB) UpdateByID(id string, values map[string]any) error {
