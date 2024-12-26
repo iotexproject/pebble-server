@@ -14,6 +14,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
+	"gorm.io/gorm"
 
 	"github.com/iotexproject/pebble-server/contract/ioid"
 	"github.com/iotexproject/pebble-server/contract/project"
@@ -25,6 +26,7 @@ type (
 	UpsertScannedBlockNumber func(uint64) error
 	UpsertProjectMetadata    func(projectID uint64, key [32]byte, value []byte) error
 	UpsertDevice             func(t *db.Device) error
+	UpdateDeviceOwner        func(*big.Int, common.Address) error
 )
 
 type Handler struct {
@@ -32,6 +34,7 @@ type Handler struct {
 	UpsertScannedBlockNumber
 	UpsertProjectMetadata
 	UpsertDevice
+	UpdateDeviceOwner
 }
 
 type ContractAddr struct {
@@ -54,11 +57,13 @@ type contract struct {
 var (
 	projectAddMetadataTopic = crypto.Keccak256Hash([]byte("AddMetadata(uint256,string,bytes32,bytes)"))
 	createIoIDTopic         = crypto.Keccak256Hash([]byte("CreateIoID(address,uint256,address,string)"))
+	erc721TransferTopic     = crypto.Keccak256Hash([]byte("Transfer(address,address,uint256)"))
 )
 
 var allTopic = []common.Hash{
 	projectAddMetadataTopic,
 	createIoIDTopic,
+	erc721TransferTopic,
 }
 
 func (c *contract) processLogs(logs []types.Log) error {
@@ -98,6 +103,7 @@ func (c *contract) processLogs(logs []types.Log) error {
 
 			if err := c.h.UpsertDevice(&db.Device{
 				ID:             e.Did,
+				NFTID:          e.Id.String(),
 				Owner:          e.Owner.String(),
 				Address:        address.String(),
 				Status:         db.CONFIRM,
@@ -105,6 +111,17 @@ func (c *contract) processLogs(logs []types.Log) error {
 				OperationTimes: db.NewOperationTimes(),
 			}); err != nil {
 				return err
+			}
+		case erc721TransferTopic:
+			e, err := c.ioidInstance.ParseTransfer(l)
+			if err != nil {
+				return errors.Wrap(err, "failed to parse erc721 transfer event")
+			}
+			if err := c.h.UpdateDeviceOwner(e.TokenId, e.To); err != nil {
+				if err == gorm.ErrRecordNotFound {
+					continue
+				}
+				return errors.Wrap(err, "failed to update device owner")
 			}
 		}
 	}
