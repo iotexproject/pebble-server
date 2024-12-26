@@ -59,14 +59,14 @@ func (d *DB) Device(id string) (*Device, error) {
 func (d *DB) UpsertDevice(t *Device) error {
 	err := d.db.Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "id"}},
-		DoUpdates: clause.AssignmentColumns([]string{"nftid", "owner", "address", "status", "proposer", "updated_at"}),
+		DoUpdates: clause.AssignmentColumns([]string{"nft_id", "owner", "address", "status", "proposer", "updated_at"}),
 	}).Create(t).Error
 	return errors.Wrap(err, "failed to upsert device")
 }
 
-func (d *DB) UpdateOwner(nftid *big.Int, owner common.Address) error {
+func (d *DB) UpdateOwner(nftID *big.Int, owner common.Address) error {
 	values := map[string]any{"owner": owner.String()}
-	err := d.db.Model(&Device{}).Where("nftid = ?", nftid.String()).Updates(values).Error
+	err := d.db.Model(&Device{}).Where("nft_id = ?", nftID.String()).Updates(values).Error
 	return errors.Wrap(err, "failed to update device owner")
 }
 
