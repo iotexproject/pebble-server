@@ -2,6 +2,7 @@ package db
 
 import (
 	"github.com/pkg/errors"
+	"gorm.io/gorm"
 )
 
 type DeviceRecord struct {
@@ -27,6 +28,17 @@ type DeviceRecord struct {
 }
 
 func (*DeviceRecord) TableName() string { return "device_record" }
+
+func (d *DB) QueryDeviceRecord(latitude, longitude string) (*DeviceRecord, error) {
+	t := &DeviceRecord{}
+	if err := d.db.Where("latitude = ?", latitude).Where("longitude = ?", longitude).Order("timestamp DESC").First(&t).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, errors.Wrap(err, "failed to query device record")
+	}
+	return t, nil
+}
 
 func (d *DB) CreateDeviceRecord(t *DeviceRecord) error {
 	err := d.db.Create(t).Error

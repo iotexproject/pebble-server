@@ -61,6 +61,21 @@ type queryResp struct {
 	Signature string `json:"signature,omitempty"`
 }
 
+type queryRecordResp struct {
+	Snr           string `json:"snr"`
+	Vbat          string `json:"vbat"`
+	GasResistance string `json:"gasResistance"`
+	Temperature   string `json:"temperature"`
+	Temperature2  string `json:"temperature2"`
+	Pressure      string `json:"pressure"`
+	Humidity      string `json:"humidity"`
+	Light         string `json:"light"`
+	Gyroscope     string `json:"gyroscope"`
+	Accelerometer string `json:"accelerometer"`
+	Latitude      string `json:"latitude"`
+	Longitude     string `json:"longitude"`
+}
+
 type receiveReq struct {
 	DeviceID  string `json:"deviceID"                   binding:"required"`
 	Payload   string `json:"payload"                    binding:"required"`
@@ -175,6 +190,36 @@ func (s *httpServer) query(c *gin.Context) {
 	}
 	resp.Signature = hexutil.Encode(sig)
 
+	c.JSON(http.StatusOK, resp)
+}
+
+func (s *httpServer) deviceRecord(c *gin.Context) {
+	lat := c.Query("lat")
+	lon := c.Query("lon")
+
+	d, err := s.db.QueryDeviceRecord(lat, lon)
+	if err != nil {
+		slog.Error("failed to query device record", "error", err)
+		c.JSON(http.StatusInternalServerError, newErrResp(errors.Wrap(err, "failed to query device record")))
+		return
+	}
+	resp := &queryRecordResp{}
+	if d != nil {
+		resp = &queryRecordResp{
+			Snr:           d.Snr,
+			Vbat:          d.Vbat,
+			GasResistance: d.GasResistance,
+			Temperature:   d.Temperature,
+			Temperature2:  d.Temperature2,
+			Pressure:      d.Pressure,
+			Humidity:      d.Humidity,
+			Light:         d.Light,
+			Gyroscope:     d.Gyroscope,
+			Accelerometer: d.Accelerometer,
+			Latitude:      d.Latitude,
+			Longitude:     d.Longitude,
+		}
+	}
 	c.JSON(http.StatusOK, resp)
 }
 
@@ -536,6 +581,7 @@ func Run(db *db.DB, address string, client *ethclient.Client, prv *ecdsa.Private
 	s.engine.GET("/public_key", s.pubkey)
 	s.engine.GET("/device", s.query)
 	s.engine.POST("/device", s.receive)
+	s.engine.GET("/v2/device_record", s.deviceRecord)
 	s.engine.GET("/v2/device", s.query)
 	s.engine.POST("/v2/device", s.receiveV2)
 
