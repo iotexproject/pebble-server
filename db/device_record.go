@@ -1,6 +1,8 @@
 package db
 
 import (
+	"fmt"
+
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
@@ -30,8 +32,22 @@ type DeviceRecord struct {
 func (*DeviceRecord) TableName() string { return "device_record" }
 
 func (d *DB) QueryDeviceRecord(latitude, longitude string) (*DeviceRecord, error) {
+	sql := `SELECT device_record_id FROM device_record_geo_locations 
+              WHERE ST_DWithin(
+              geom,
+              ST_MakePoint(%s, %s)::geography,
+              5000
+            );`
+
+	ids := []string{}
+	if err := d.db.Exec(fmt.Sprintf(sql, longitude, latitude)).Find(&ids).Error; err != nil {
+		return nil, errors.Wrap(err, "failed to query device record geo data")
+	}
+	if len(ids) == 0 {
+		return nil, nil
+	}
 	t := &DeviceRecord{}
-	if err := d.db.Where("latitude = ?", latitude).Where("longitude = ?", longitude).Order("timestamp DESC").First(&t).Error; err != nil {
+	if err := d.db.Where("id IN ?", ids).Order("timestamp DESC").First(&t).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
