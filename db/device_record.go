@@ -40,7 +40,7 @@ func (d *DB) QueryDeviceRecord(latitude, longitude string) (*DeviceRecord, error
             );`
 
 	ids := []string{}
-	if err := d.db.Exec(fmt.Sprintf(sql, longitude, latitude)).Find(&ids).Error; err != nil {
+	if err := d.db.Raw(fmt.Sprintf(sql, longitude, latitude)).Scan(&ids).Error; err != nil {
 		return nil, errors.Wrap(err, "failed to query device record geo data")
 	}
 	if len(ids) == 0 {
