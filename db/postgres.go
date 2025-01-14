@@ -8,10 +8,11 @@ import (
 )
 
 type DB struct {
-	db *gorm.DB
+	db    *gorm.DB
+	oldDB *gorm.DB
 }
 
-func New(dsn string) (*DB, error) {
+func New(dsn, oldDSN string) (*DB, error) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
@@ -32,5 +33,14 @@ func New(dsn string) (*DB, error) {
 	); err != nil {
 		return nil, errors.Wrap(err, "failed to migrate model")
 	}
-	return &DB{db}, nil
+	oldDB, err := gorm.Open(postgres.Open(oldDSN), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to connect old postgres")
+	}
+	return &DB{
+		db:    db,
+		oldDB: oldDB,
+	}, nil
 }

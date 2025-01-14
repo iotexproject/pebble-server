@@ -43,15 +43,29 @@ func (d *DB) QueryDeviceRecord(latitude, longitude string) (*DeviceRecord, error
 	if err := d.db.Raw(fmt.Sprintf(sql, longitude, latitude)).Scan(&ids).Error; err != nil {
 		return nil, errors.Wrap(err, "failed to query device record geo data")
 	}
-	if len(ids) == 0 {
+	if len(ids) != 0 {
+		t := &DeviceRecord{}
+		if err := d.db.Where("id IN ?", ids).Order("timestamp DESC").First(&t).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				return nil, nil
+			}
+			return nil, errors.Wrap(err, "failed to query device record")
+		}
+		return t, nil
+	}
+	oldIDs := []string{}
+	if err := d.oldDB.Raw(fmt.Sprintf(sql, longitude, latitude)).Scan(&ids).Error; err != nil {
+		return nil, errors.Wrap(err, "failed to query device record geo data from old db")
+	}
+	if len(oldIDs) == 0 {
 		return nil, nil
 	}
 	t := &DeviceRecord{}
-	if err := d.db.Where("id IN ?", ids).Order("timestamp DESC").First(&t).Error; err != nil {
+	if err := d.oldDB.Where("id IN ?", oldIDs).Order("timestamp DESC").First(&t).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
-		return nil, errors.Wrap(err, "failed to query device record")
+		return nil, errors.Wrap(err, "failed to query device record from old db")
 	}
 	return t, nil
 }
