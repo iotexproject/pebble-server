@@ -55,7 +55,7 @@ func (d *DB) QueryDeviceRecord(latitude, longitude string) (*DeviceRecord, error
 		return t, nil
 	}
 	oldIDs := []string{}
-	if err := d.oldDB.Raw(fmt.Sprintf(sql, longitude, latitude)).Scan(&ids).Error; err != nil {
+	if err := d.oldDB.Raw(fmt.Sprintf(sql, longitude, latitude)).Scan(&oldIDs).Error; err != nil {
 		return nil, errors.Wrap(err, "failed to query device record geo data from old db")
 	}
 	slog.Info("old ids", "oldIDs", oldIDs)
