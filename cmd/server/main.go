@@ -31,7 +31,7 @@ func main() {
 		log.Fatal(errors.Wrap(err, "failed to parse private key"))
 	}
 
-	db, err := db.New(cfg.DatabaseDSN)
+	db, err := db.New(cfg.DatabaseDSN, cfg.OldDatabaseDSN)
 	if err != nil {
 		log.Fatal(errors.Wrap(err, "failed to new db"))
 	}
