@@ -16,7 +16,7 @@ type Config struct {
 	ServiceEndpoint          string     `env:"HTTP_SERVICE_ENDPOINT"`
 	PrvKey                   string     `env:"PRIVATE_KEY,optional"`
 	DatabaseDSN              string     `env:"DATABASE_DSN"`
-	MQTTPebbleDatabaseDSN    string     `env:"MQTTPEBBLE_DATABASE_DSN"`
+	OldDatabaseDSN           string     `env:"OLD_DATABASE_DSN"`
 	ChainEndpoint            string     `env:"CHAIN_ENDPOINT,optional"`
 	BeginningBlockNumber     uint64     `env:"BEGINNING_BLOCK_NUMBER,optional"`
 	IoIDProjectID            uint64     `env:"IOID_PROJECT_ID,optional"`
