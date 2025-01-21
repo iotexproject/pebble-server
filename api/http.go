@@ -86,6 +86,7 @@ type receiveReq struct {
 // Therefore, we’ll use only two codes: 200 for success and 400 for failure.
 // Specific error details will be provided in the returned error message.
 type httpServer struct {
+	wsAddr string
 	engine *gin.Engine
 	db     *db.DB
 	prv    *ecdsa.PrivateKey
@@ -286,6 +287,21 @@ func (s *httpServer) receive(c *gin.Context) {
 	c.Status(http.StatusOK)
 }
 
+func (s *httpServer) forwardWs(req *wsapi.CreateTaskReq) {
+	jsonData, err := json.Marshal(req)
+	if err != nil {
+		slog.Error("failed to marshal request when forward w3bstream", "error", err)
+		return
+	}
+	targetURL := fmt.Sprintf("https://%s/v1/task", s.wsAddr)
+	resp, err := http.Post(targetURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		slog.Error("failed to send http request when forward w3bstream", "error", err)
+		return
+	}
+	defer resp.Body.Close()
+}
+
 func (s *httpServer) receiveV2(c *gin.Context) {
 	req := &wsapi.CreateTaskReq{}
 	if err := c.ShouldBindJSON(req); err != nil {
@@ -293,6 +309,7 @@ func (s *httpServer) receiveV2(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "invalid request payload")))
 		return
 	}
+	s.forwardWs(req)
 	pid, ok := new(big.Int).SetString(req.ProjectID, 10)
 	if !ok {
 		slog.Error("failed to decode project id string", "project_id", req.ProjectID)
@@ -570,8 +587,9 @@ func (s *httpServer) handleSensor(id string, pkg *proto.BinPackage, data *proto.
 	return nil
 }
 
-func Run(db *db.DB, address string, client *ethclient.Client, prv *ecdsa.PrivateKey) error {
+func Run(db *db.DB, address, wsAddr string, client *ethclient.Client, prv *ecdsa.PrivateKey) error {
 	s := &httpServer{
+		wsAddr: wsAddr,
 		engine: gin.Default(),
 		db:     db,
 		prv:    prv,
