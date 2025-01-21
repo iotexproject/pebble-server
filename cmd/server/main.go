@@ -61,7 +61,7 @@ func main() {
 	}
 
 	go func() {
-		if err := api.Run(db, cfg.ServiceEndpoint, client, prv); err != nil {
+		if err := api.Run(db, cfg.ServiceEndpoint, cfg.W3bstreamServiceEndpoint, client, prv); err != nil {
 			log.Fatal(err)
 		}
 	}()
