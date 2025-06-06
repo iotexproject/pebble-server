@@ -111,6 +111,8 @@ func (s *httpServer) query(c *gin.Context) {
 		return
 	}
 
+	slog.Info("device query", "device_id", req.DeviceID)
+
 	deviceAddr := common.HexToAddress(strings.TrimPrefix(req.DeviceID, "did:io:"))
 	sigStr := req.Signature
 	req.Signature = ""
