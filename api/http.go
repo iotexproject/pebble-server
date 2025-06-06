@@ -116,6 +116,7 @@ func (s *httpServer) query(c *gin.Context) {
 	sigStr := req.Signature
 	req.Signature = ""
 
+	slog.Info("device query", "device_id", req.DeviceID)
 	ok, err := s.verifySignature(deviceAddr, sigStr, req)
 	if err != nil {
 		slog.Error("failed to verify signature", "error", err)
