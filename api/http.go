@@ -47,8 +47,9 @@ type pubkeyResp struct {
 }
 
 type queryReq struct {
-	DeviceID  string `json:"deviceID"                   binding:"required"`
-	Signature string `json:"signature,omitempty"        binding:"required"`
+	DeviceID   string `json:"deviceID"                   binding:"required"`
+	DeviceIMEI string `json:"deviceIMEI,omitempty"`
+	Signature  string `json:"signature,omitempty"        binding:"required"`
 }
 
 type queryResp struct {
@@ -139,6 +140,14 @@ func (s *httpServer) query(c *gin.Context) {
 		slog.Error("the device has not been registered", "device_id", req.DeviceID)
 		c.JSON(http.StatusBadRequest, newErrResp(errors.New("the device has not been registered")))
 		return
+	}
+
+	if req.DeviceIMEI != "" {
+		if err := s.handleName(strings.ToLower(req.DeviceID), req.DeviceIMEI); err != nil {
+			slog.Error("failed to update device name", "device_id", req.DeviceID)
+			c.JSON(http.StatusBadRequest, newErrResp(errors.Wrap(err, "failed to update device name")))
+			return
+		}
 	}
 
 	metrics.TrackDeviceCount(req.DeviceID)
@@ -493,6 +502,14 @@ func (s *httpServer) handle(id string, pkg *proto.BinPackage, data goproto.Messa
 		err = s.handleSensor(id, pkg, data)
 	}
 	return errors.Wrapf(err, "failed to handle %T", data)
+}
+
+func (s *httpServer) handleName(id, name string) error {
+	err := s.db.UpdateByID(id, map[string]any{
+		"name":       name,
+		"updated_at": time.Now(),
+	})
+	return errors.Wrapf(err, "failed to update device name: %s", id)
 }
 
 func (s *httpServer) handleConfig(id string, data *proto.SensorConfig) error {
