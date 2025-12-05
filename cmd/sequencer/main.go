@@ -31,17 +31,18 @@ var (
 
 	app    *confapp.AppCtx
 	config = &struct {
-		DryRun         bool
-		MqttBroker     *confmqtt.Broker
-		Database       *database.Postgres
-		Blockchain     *blockchain.Blockchain
-		Logger         *logger.Logger
-		PrivateKey     *crypto.EcdsaPrivateKey
-		ProjectID      uint64
-		ProjectVersion string
-		WhiteList      contexts.WhiteList
-		LarkAlert      *alert.LarkAlert
-		MqttClientID   string
+		DryRun             bool
+		MqttBroker         *confmqtt.Broker
+		Database           *database.Postgres
+		Blockchain         *blockchain.Blockchain
+		Logger             *logger.Logger
+		PrivateKey         *crypto.EcdsaPrivateKey
+		ProjectID          uint64
+		ProjectVersion     string
+		OperatorPrivateKey string
+		WhiteList          contexts.WhiteList
+		LarkAlert          *alert.LarkAlert
+		MqttClientID       string
 	}{
 		DryRun:     false,
 		Logger:     &logger.Logger{Level: slog.LevelDebug},
@@ -96,6 +97,7 @@ func init() {
 		contexts.AppMeta().Compose(&meta),
 		contexts.DryRun().Compose(config.DryRun),
 		contexts.MqttClientID().Compose(config.MqttClientID),
+		contexts.OperatorPrivateKey().Compose(config.OperatorPrivateKey),
 	)(context.Background())
 
 	app.AddCommand(commands.Migrate(ctx))

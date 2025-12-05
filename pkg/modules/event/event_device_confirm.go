@@ -3,19 +3,18 @@ package event
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
-	"fmt"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/google/uuid"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
 	"github.com/xoctopus/x/misc/must"
 	"google.golang.org/protobuf/proto"
-	"gorm.io/datatypes"
-	"gorm.io/gorm"
 
+	pebble "github.com/machinefi/sprout-pebble-sequencer/contract"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/contexts"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/enums"
 	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
@@ -109,46 +108,37 @@ func (e *DeviceConfirm) Handle(ctx context.Context) (err error) {
 		return WrapValidateError(e)
 	}
 
-	id := uuid.NewString()
-	projectID := contexts.ProjectID().MustFrom(ctx)
-	projectVersion := contexts.ProjectVersion().MustFrom(ctx)
-	msg := &models.Message{
-		MessageID:      dev.Address + fmt.Sprintf("-%d-%s", e.pkg.GetTimestamp(), id),
-		ClientID:       dev.Address,
-		ProjectID:      projectID,
-		ProjectVersion: projectVersion,
-		Data: must.NoErrorV(json.Marshal(message{
-			IMEI:        e.Imei,
-			Owner:       common.BytesToAddress(e.pkg.GetOwner()).String(),
-			Timestamp:   e.pkg.GetTimestamp(),
-			Signature:   hex.EncodeToString(e.sig),
-			GasLimit:    big.NewInt(200000).String(),
-			DataChannel: uint32(dev.DataChannel),
-		})),
-		InternalTaskID: id,
+	operatorPrivateKey := contexts.OperatorPrivateKey().MustFrom(ctx)
+	client, err := ethclient.Dial("https://babel-api.mainnet.iotex.io")
+	if err != nil {
+		return errors.Wrap(err, "failed to dial chain endpoint")
 	}
-	task := &models.Task{
-		ProjectID:      projectID,
-		InternalTaskID: id,
-		MessageIDs:     datatypes.JSON([]byte(`["` + msg.MessageID + `"]`)),
-		Signature:      "",
+	chainID, err := client.ChainID(context.Background())
+	if err != nil {
+		return errors.Wrap(err, "failed to get chain id")
+	}
+	instance, err := pebble.NewPebble(common.HexToAddress("0xC9D7D9f25b98119DF5b2303ac0Df6b15C982BbF5"), client)
+	if err != nil {
+		return errors.Wrap(err, "failed to new erc20 contract instance")
+	}
+	prv, err := crypto.HexToECDSA(operatorPrivateKey)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse private key")
 	}
 
-	sk := contexts.PrivateKey().MustFrom(ctx)
-	db := contexts.Database().MustFrom(ctx)
-	err = db.Transaction(func(tx *gorm.DB) error {
-		if err = tx.Create(msg).Error; err != nil {
-			return errors.Wrapf(err, "failed to create message")
-		}
-		if err = tx.Create(task).Error; err != nil {
-			return errors.Wrapf(err, "failed to create task")
-		}
-		if err = task.Sign(sk.PrivateKey, msg); err != nil {
-			return errors.Wrapf(err, "failed to sign message")
-		}
-		err = tx.Model(task).Update("signature", task.Signature).
-			Where("id=?", task.ID).Error
-		return errors.Wrapf(err, "failed to update task signature")
-	})
-	return errors.Wrap(err, "in transaction")
+	_, err = instance.Confirm(
+		&bind.TransactOpts{
+			From: crypto.PubkeyToAddress(prv.PublicKey),
+			Signer: func(a common.Address, t *types.Transaction) (*types.Transaction, error) {
+				return types.SignTx(t, types.NewLondonSigner(chainID), prv)
+			},
+		},
+		e.Imei, common.BytesToAddress(e.pkg.GetOwner()), e.pkg.GetTimestamp(), e.sig,
+		big.NewInt(200000), uint32(dev.DataChannel),
+	)
+	if err != nil {
+		return errors.Wrap(err, "failed to confirm device")
+	}
+
+	return nil
 }
