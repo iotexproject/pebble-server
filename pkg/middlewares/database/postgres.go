@@ -3,6 +3,7 @@ package database
 import (
 	"net/url"
 
+	"github.com/machinefi/sprout-pebble-sequencer/pkg/models"
 	"github.com/xoctopus/datatypex"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -22,7 +23,7 @@ func (d *Postgres) SetDefault() {
 			Host:   "127.0.0.1",
 			Port:   5432,
 			Base:   "pebble",
-			Param:  url.Values{"sslmode": []string{"disable"}},
+			Param:  url.Values{"sslmode": []string{"disable"}, "search_path": []string{"newpebble"}},
 		}
 	}
 }
@@ -34,6 +35,21 @@ func (d *Postgres) Init() error {
 	if err != nil {
 		return err
 	}
+
+	if err := db.AutoMigrate(
+		&models.Account{},
+		&models.App{},
+		&models.AppV2{},
+		&models.Bank{},
+		&models.BankRecord{},
+		&models.Device{},
+		&models.DeviceRecord{},
+		&models.Task{},
+		&models.Message{},
+	); err != nil {
+		return err
+	}
+
 	d.DB = db
 	return nil
 }
